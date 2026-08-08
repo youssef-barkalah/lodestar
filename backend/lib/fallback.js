@@ -1,4 +1,5 @@
 import { searchDuckDuckGo } from './ddg.js';
+import { searchBing } from './bing.js';
 import { searchImages } from './wikimedia.js';
 import { searchNews } from './bingnews.js';
 import { searchVideos } from './youtube.js';
@@ -18,8 +19,12 @@ export async function buildFallbackPayload(query, type, page) {
     const payload = await searchVideos(query);
     results = payload.results;
   } else {
-    const payload = await searchDuckDuckGo(query);
-    results = payload.results;
+    const bingPayload = await searchBing(query);
+    results = bingPayload.results;
+    if (!results.length) {
+      const ddgPayload = await searchDuckDuckGo(query);
+      results = ddgPayload.results;
+    }
   }
 
   const start = (page - 1) * PAGE_SIZE;
