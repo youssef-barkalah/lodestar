@@ -1,5 +1,5 @@
 const DEFAULT_API_URL = 'http://localhost:3001';
-const HOSTED_API_URL = 'https://lodestar-backend.onrender.com';
+const HOSTED_API_URL = 'https://lodestar-c2zh.onrender.com';
 
 export const API_URL = (
   window.LODESTAR_API ||
