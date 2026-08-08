@@ -1,9 +1,12 @@
 const DEFAULT_API_URL = 'http://localhost:3001';
+const HOSTED_API_URL = 'https://lodestar-backend.onrender.com';
 
-export const API_URL = (window.LODESTAR_API || DEFAULT_API_URL).replace(
-  /\/+$/,
-  ''
-);
+export const API_URL = (
+  window.LODESTAR_API ||
+  (location.hostname.endsWith('.github.io')
+    ? HOSTED_API_URL
+    : DEFAULT_API_URL)
+).replace(/\/+$/, '');
 
 export async function fetchCountry(query) {
   try {
