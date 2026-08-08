@@ -1,0 +1,163 @@
+{
+  "google": {
+    "name": "Google",
+    "domain": "google.com",
+    "url": "https://www.google.com/",
+    "aliases": ["google"],
+    "domains": ["google.com", "google.co.uk", "google.de", "google.ca", "google.fr", "google.co.in", "google.com.br", "google.com.au"],
+    "tagline": "Search the world's information, including webpages, images, videos and more.",
+    "services": [
+      { "label": "Search", "url": "https://www.google.com/" },
+      { "label": "Maps", "url": "https://maps.google.com/" },
+      { "label": "Drive", "url": "https://drive.google.com/" },
+      { "label": "Gmail", "url": "https://mail.google.com/" }
+    ]
+  },
+  "youtube": {
+    "name": "YouTube",
+    "domain": "youtube.com",
+    "url": "https://www.youtube.com/",
+    "aliases": ["youtube", "yt"],
+    "domains": ["youtube.com", "youtu.be"],
+    "tagline": "Enjoy the videos and music you love, upload original content, and share it all with friends.",
+    "services": [
+      { "label": "Trending", "url": "https://www.youtube.com/feed/trending" },
+      { "label": "Shorts", "url": "https://www.youtube.com/shorts" },
+      { "label": "Subscriptions", "url": "https://www.youtube.com/feed/subscriptions" }
+    ]
+  },
+  "wikipedia": {
+    "name": "Wikipedia",
+    "domain": "wikipedia.org",
+    "url": "https://www.wikipedia.org/",
+    "aliases": ["wikipedia", "wiki"],
+    "domains": ["wikipedia.org"],
+    "tagline": "The free encyclopedia anyone can edit, with millions of articles in hundreds of languages.",
+    "services": [
+      { "label": "Main page", "url": "https://www.wikipedia.org/" },
+      { "label": "Random article", "url": "https://en.wikipedia.org/wiki/Special:Random" },
+      { "label": "About", "url": "https://en.wikipedia.org/wiki/Wikipedia:About" }
+    ]
+  },
+  "github": {
+    "name": "GitHub",
+    "domain": "github.com",
+    "url": "https://github.com/",
+    "aliases": ["github", "git hub"],
+    "domains": ["github.com"],
+    "tagline": "Where the world builds software. Host, review, and collaborate on code.",
+    "services": [
+      { "label": "Explore", "url": "https://github.com/explore" },
+      { "label": "Topics", "url": "https://github.com/topics" },
+      { "label": "Pricing", "url": "https://github.com/pricing" }
+    ]
+  },
+  "reddit": {
+    "name": "Reddit",
+    "domain": "reddit.com",
+    "url": "https://www.reddit.com/",
+    "aliases": ["reddit"],
+    "domains": ["reddit.com", "old.reddit.com"],
+    "tagline": "The front page of the internet. Home to thousands of communities.",
+    "services": [
+      { "label": "Popular", "url": "https://www.reddit.com/r/popular/" },
+      { "label": "Top", "url": "https://www.reddit.com/top/" },
+      { "label": "All", "url": "https://www.reddit.com/r/all/" }
+    ]
+  },
+  "stackoverflow": {
+    "name": "Stack Overflow",
+    "domain": "stackoverflow.com",
+    "url": "https://stackoverflow.com/",
+    "aliases": ["stack overflow", "stackoverflow", "so"],
+    "domains": ["stackoverflow.com"],
+    "tagline": "Where developers learn, share, and build their careers.",
+    "services": [
+      { "label": "Questions", "url": "https://stackoverflow.com/questions" },
+      { "label": "Tags", "url": "https://stackoverflow.com/tags" }
+    ]
+  },
+  "amazon": {
+    "name": "Amazon",
+    "domain": "amazon.com",
+    "url": "https://www.amazon.com/",
+    "aliases": ["amazon"],
+    "domains": ["amazon.com", "amazon.co.uk", "amazon.de", "amazon.ca"],
+    "tagline": "Online shopping from the earth's biggest selection of books, magazines, music, DVDs, videos, electronics, and more.",
+    "services": [
+      { "label": "Today's Deals", "url": "https://www.amazon.com/gp/goldbox" },
+      { "label": "Books", "url": "https://www.amazon.com/books-used-books-textbooks/b/?node=283155" }
+    ]
+  },
+  "netflix": {
+    "name": "Netflix",
+    "domain": "netflix.com",
+    "url": "https://www.netflix.com/",
+    "aliases": ["netflix"],
+    "domains": ["netflix.com"],
+    "tagline": "Watch Netflix movies & TV shows online or stream right to your smart TV.",
+    "services": [
+      { "label": "Browse", "url": "https://www.netflix.com/browse" },
+      { "label": "My List", "url": "https://www.netflix.com/browse/my-list" }
+    ]
+  },
+  "x": {
+    "name": "X",
+    "domain": "x.com",
+    "url": "https://x.com/",
+    "aliases": ["x", "twitter"],
+    "domains": ["x.com", "twitter.com"],
+    "tagline": "What's happening right now. The home of global conversation.",
+    "services": [
+      { "label": "Explore", "url": "https://x.com/explore" }
+    ]
+  },
+  "instagram": {
+    "name": "Instagram",
+    "domain": "instagram.com",
+    "url": "https://www.instagram.com/",
+    "aliases": ["instagram"],
+    "domains": ["instagram.com"],
+    "tagline": "A simple, fun & creative way to capture, edit, and share photos, videos, and messages.",
+    "services": [
+      { "label": "Explore", "url": "https://www.instagram.com/explore/" }
+    ]
+  },
+  "facebook": {
+    "name": "Facebook",
+    "domain": "facebook.com",
+    "url": "https://www.facebook.com/",
+    "aliases": ["facebook"],
+    "domains": ["facebook.com"],
+    "tagline": "Connect with friends and the world around you on Facebook.",
+    "services": [
+      { "label": "Groups", "url": "https://www.facebook.com/groups/" },
+      { "label": "Marketplace", "url": "https://www.facebook.com/marketplace/" }
+    ]
+  },
+  "apple": {
+    "name": "Apple",
+    "domain": "apple.com",
+    "url": "https://www.apple.com/",
+    "aliases": ["apple"],
+    "domains": ["apple.com"],
+    "tagline": "Discover the innovative world of Apple and shop everything iPhone, iPad, Apple Watch, Mac, and Apple TV.",
+    "services": [
+      { "label": "iPhone", "url": "https://www.apple.com/iphone/" },
+      { "label": "Mac", "url": "https://www.apple.com/mac/" },
+      { "label": "Support", "url": "https://support.apple.com/" }
+    ]
+  },
+  "microsoft": {
+    "name": "Microsoft",
+    "domain": "microsoft.com",
+    "url": "https://www.microsoft.com/",
+    "aliases": ["microsoft"],
+    "domains": ["microsoft.com"],
+    "tagline": "Discover the latest Microsoft products and innovations.",
+    "services": [
+      { "label": "Windows", "url": "https://www.microsoft.com/windows/" },
+      { "label": "Office", "url": "https://www.microsoft.com/microsoft-365" }
+    ]
+  }
+}

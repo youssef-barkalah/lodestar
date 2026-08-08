@@ -1,0 +1,19 @@
+use_default_settings: true
+
+server:
+  secret_key: "lodestar-dev-secret-change-me"
+  base_url: "http://localhost:8080/"
+  limiter: false
+  image_proxy: false
+
+search:
+  formats:
+    - html
+    - json
+
+ui:
+  default_locale: "en"
+
+outgoing:
+  request_timeout: 5
+  max_request_timeout: 15

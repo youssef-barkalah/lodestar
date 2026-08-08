@@ -1,0 +1,23 @@
+# Lodestar SearXNG instance for local development.
+# Docs: https://docs.searxng.org/admin/installation-docker.html
+
+name: lodestar-searxng
+
+services:
+  core:
+    container_name: lodestar-searxng
+    image: docker.io/searxng/searxng:${SEARXNG_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SEARXNG_PORT=8080
+      - SEARXNG_BASE_URL=http://localhost:8080/
+      - SEARXNG_SECRET=lodestar-dev-secret-change-me
+      - SEARXNG_LIMITER=false
+    volumes:
+      - ./configuration/:/etc/searxng/
+      - searxng-data:/var/cache/searxng/
+
+volumes:
+  searxng-data:

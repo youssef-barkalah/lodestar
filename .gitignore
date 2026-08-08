@@ -1,0 +1,17 @@
+# Secrets - never commit these
+backend/.env
+
+# Runtime cache & temp files
+backend/.cache/
+backend/.boot-*.log
+backend/.boot.pid
+backend/data/accounts.json
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.log

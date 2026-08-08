@@ -1,0 +1,63 @@
+@font-face {
+  font-family: 'Raleway';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/raleway-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Raleway';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/fonts/raleway-latin.woff2') format('woff2');
+}
+
+:root {
+  color-scheme: light;
+
+  --brand: #443199;
+  --brand-hover: #382782;
+  --accent-text: #443199;
+  --accent-soft: rgba(68, 49, 153, 0.09);
+  --focus-color: #443199;
+  --focus-ring: 0 0 0 3px rgba(68, 49, 153, 0.28);
+
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-raised: #f6f6fa;
+  --text: #191924;
+  --text-secondary: #565664;
+  --text-tertiary: #6e6e7c;
+  --border: #e4e4ee;
+  --border-strong: #c7c7d6;
+  --shadow-sm: 0 1px 2px rgba(24, 18, 64, 0.06);
+  --shadow-md: 0 10px 28px rgba(24, 18, 64, 0.14);
+
+  --radius-box: 12px;
+  --radius-pill: 999px;
+
+  --font-sans: 'Raleway', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --brand-hover: #5a4bb5;
+  --accent-text: #a99bf0;
+  --accent-soft: rgba(143, 125, 226, 0.15);
+  --focus-color: #a99bf0;
+  --focus-ring: 0 0 0 3px rgba(143, 125, 226, 0.35);
+
+  --bg: #12121a;
+  --surface: #171720;
+  --surface-raised: #1e1e29;
+  --text: #ececf4;
+  --text-secondary: #b1b1c2;
+  --text-tertiary: #8b8b9b;
+  --border: #2a2a38;
+  --border-strong: #3c3c4e;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.5);
+}

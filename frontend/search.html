@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Search — Lodestar</title>
+  <meta name="description" content="Search the web privately with Lodestar.">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/raleway-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="js/head-theme.js"></script>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/results.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <a class="topbar__brand" href="index.html" aria-label="Lodestar — Home">
+      <img class="topbar__logo logo-word logo-word--purple" src="assets/purple-logo.svg" alt="Lodestar" width="167" height="28">
+      <img class="topbar__logo logo-word logo-word--white" src="assets/white-logo.svg" alt="Lodestar" width="167" height="28">
+      <img class="topbar__logo logo-mark" src="assets/icon.svg" alt="Lodestar" width="26" height="26">
+    </a>
+
+    <form class="search-form topbar__search" action="search.html" method="get" role="search">
+      <label class="sr-only" for="search-q">Search the web</label>
+      <input type="hidden" name="type" id="search-type" value="web">
+      <div class="search-box">
+        <input class="search-box__input" id="search-q" name="q" type="search" placeholder="Search the web" autocomplete="off" spellcheck="false" enterkeyhint="search">
+        <button class="search-box__submit" type="submit" aria-label="Search">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+      </div>
+    </form>
+
+    <div class="topbar__actions">
+      <a class="settings-icon" href="history.html" aria-label="History">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+          <path d="M3 3v5h5"></path>
+          <path d="M12 7v5l4 2"></path>
+        </svg>
+      </a>
+      <a class="settings-icon" href="settings.html" aria-label="Settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <h1 class="sr-only" id="results-heading">Search results</h1>
+
+    <nav class="tabs-bar" aria-label="Search categories">
+      <div class="tabs-bar__inner">
+        <div class="search-tabs" id="search-tabs">
+          <a class="search-tabs__link" href="search.html?type=web" data-type="web">Web</a>
+          <a class="search-tabs__link" href="search.html?type=images" data-type="images">Images</a>
+          <a class="search-tabs__link" href="search.html?type=news" data-type="news">News</a>
+          <a class="search-tabs__link" href="search.html?type=videos" data-type="videos">Videos</a>
+        </div>
+      </div>
+    </nav>
+
+    <section class="results" aria-labelledby="results-heading">
+      <p class="sr-only" id="results-live" aria-live="polite"></p>
+      <div class="results__inner" id="results-root">
+        <noscript>
+          <p class="results__meta">Lodestar results are rendered with JavaScript. Enable JavaScript to see search results.</p>
+        </noscript>
+      </div>
+    </section>
+  </main>
+
+  <footer class="page-footer">
+    <span>Private search</span>
+  </footer>
+
+  <script type="module" src="js/search.js"></script>
+  <script type="module" src="js/theme.js"></script>
+</body>
+</html>
