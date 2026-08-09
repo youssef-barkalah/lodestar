@@ -66,9 +66,14 @@ function parseItems(xml) {
   return results;
 }
 
-export async function searchNews(query) {
+export async function searchNews(query, language) {
+  const lang = language && language !== 'any' ? language : 'en';
   const url =
-    RSS_URL + '?q=' + encodeURIComponent(query) + '&format=rss&setlang=en';
+    RSS_URL +
+    '?q=' +
+    encodeURIComponent(query) +
+    '&format=rss&setlang=' +
+    encodeURIComponent(lang);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.providerTimeout);

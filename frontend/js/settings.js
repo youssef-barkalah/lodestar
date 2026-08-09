@@ -13,6 +13,13 @@ import {
   mergeRemote,
   setting as historySettingValue,
 } from './history.js';
+import {
+  LANGUAGES,
+  getLanguage,
+  setLanguage,
+  flagUrl,
+  applyLanguageDirection,
+} from './languages.js';
 
 const HISTORY_KEY = 'lodestar.searchHistory';
 const DEFAULT_HISTORY = '24h';
@@ -22,6 +29,13 @@ const SUGGESTIONS_KEY = 'lodestar.showSuggestions';
 const VALID_HISTORY = ['off', '24h', 'always'];
 const VALID_THEMES = ['light', 'dark', 'system'];
 const VALID_SUGGESTIONS = ['on', 'off'];
+
+const GLOBE_ICON =
+  '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<circle cx="12" cy="12" r="9"></circle>' +
+  '<path d="M3 12h18"></path>' +
+  '<path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18Z"></path>' +
+  '</svg>';
 
 function save(key, value) {
   try {
@@ -101,6 +115,60 @@ function initSuggestionsSetting() {
   });
 }
 
+function initLanguage() {
+  const grid = document.getElementById('lang-grid');
+  if (!grid) return;
+
+  const current = getLanguage();
+  applyLanguageDirection(current);
+  const options = [{ code: 'any', name: 'All languages', flag: '' }].concat(
+    LANGUAGES
+  );
+
+  grid.innerHTML = options
+    .map(function (option) {
+      const icon = option.flag
+        ? '<img class="lang-option__flag" src="' +
+          escapeHtml(flagUrl(option.flag)) +
+          '" alt="" width="40" height="30" loading="lazy" referrerpolicy="no-referrer">'
+        : GLOBE_ICON;
+      return (
+        '<label class="lang-option' +
+        (option.code === current ? ' is-active' : '') +
+        '">' +
+        '<input type="radio" name="language" value="' +
+        escapeHtml(option.code) +
+        '"' +
+        (option.code === current ? ' checked' : '') +
+        '>' +
+        '<span class="lang-option__icon" aria-hidden="true">' +
+        icon +
+        '</span>' +
+        '<span class="lang-option__name">' +
+        escapeHtml(option.name) +
+        '</span>' +
+        '</label>'
+      );
+    })
+    .join('');
+
+  grid
+    .querySelectorAll('input[name="language"]')
+    .forEach(function (radio) {
+      radio.addEventListener('change', function () {
+        if (radio.checked) {
+          setLanguage(radio.value);
+          applyLanguageDirection(radio.value);
+          pushSetting({ language: radio.value });
+          grid.querySelectorAll('.lang-option').forEach(function (label) {
+            const input = label.querySelector('input');
+            label.classList.toggle('is-active', input.value === radio.value);
+          });
+        }
+      });
+    });
+}
+
 function accountMessage(message, isError) {
   const el = document.getElementById('account-message');
   if (!el) return;
@@ -125,6 +193,19 @@ function syncDown() {
       save(SUGGESTIONS_KEY, remote.suggestions);
       initRadioGroup('suggestions', remote.suggestions);
     }
+    if (remote.language !== undefined) {
+      const value = remote.language;
+      if (
+        value === 'any' ||
+        LANGUAGES.some(function (language) {
+          return language.code === value;
+        })
+      ) {
+        setLanguage(value);
+        applyLanguageDirection(value);
+        initLanguage();
+      }
+    }
   });
 }
 
@@ -134,6 +215,7 @@ function fullSyncPayload() {
     historySetting: historySettingValue(),
     theme: getTheme(),
     suggestions: load(SUGGESTIONS_KEY, 'on'),
+    language: getLanguage(),
   };
 }
 
@@ -264,5 +346,6 @@ function initBack() {
 initTheme();
 initHistory();
 initSuggestionsSetting();
+initLanguage();
 renderAccount();
 initBack();

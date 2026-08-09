@@ -8,9 +8,10 @@ import { findOfficialSite, toApiSite } from './lib/websites.js';
 import { getSuggestions } from './lib/suggest.js';
 import { getIcon, clearIconCache } from './lib/icon.js';
 import { lookupCountry } from './lib/country.js';
+import { searchMaps } from './lib/nominatim.js';
 import * as auth from './lib/auth.js';
 
-const VALID_TYPES = ['web', 'images', 'news', 'videos'];
+const VALID_TYPES = ['web', 'images', 'news', 'videos', 'maps'];
 const VALID_HISTORY = ['off', '24h', 'always'];
 const VALID_THEMES = ['light', 'dark', 'system'];
 
@@ -93,6 +94,10 @@ function sanitizeSync(body) {
   if (body.suggestions !== undefined) {
     sync.suggestions = body.suggestions === 'off' ? 'off' : 'on';
   }
+  if (body.language !== undefined) {
+    const lang = String(body.language);
+    if (lang === 'any' || /^[a-z]{2}$/.test(lang)) sync.language = lang;
+  }
   if (body.history !== undefined) {
     sync.history = sanitizeHistory(body.history);
   }
@@ -103,6 +108,8 @@ async function handleSearch(req, res) {
   const url = new URL(req.url, 'http://localhost');
   const query = (url.searchParams.get('q') || '').trim();
   const type = url.searchParams.get('type') || 'web';
+  const rawLang = String(url.searchParams.get('lang') || 'any').toLowerCase();
+  const language = /^[a-z]{2}$/.test(rawLang) ? rawLang : 'any';
   const page = Math.max(
     1,
     Math.min(50, parseInt(url.searchParams.get('page') || '1', 10) || 1)
@@ -129,26 +136,30 @@ async function handleSearch(req, res) {
 
   let payload;
   let usingFallback = false;
-  try {
-    payload = await searchSearXNG(query, type, page);
-  } catch (err) {
-    if (err instanceof UpstreamError) {
-      console.warn(
-        '[lodestar] Search provider unreachable, using alternate providers.'
-      );
-      payload = await buildFallbackPayload(query, type, page);
-      usingFallback = true;
-    } else {
-      throw err;
+  if (type === 'maps') {
+    payload = await searchMaps(query, language);
+  } else {
+    try {
+      payload = await searchSearXNG(query, type, page, language);
+    } catch (err) {
+      if (err instanceof UpstreamError) {
+        console.warn(
+          '[lodestar] Search provider unreachable, using alternate providers.'
+        );
+        payload = await buildFallbackPayload(query, type, page, language);
+        usingFallback = true;
+      } else {
+        throw err;
+      }
     }
   }
 
   let results = normalizeResults(payload);
-  if (results.length === 0 && !usingFallback) {
-    payload = await buildFallbackPayload(query, type, page);
+  if (results.length === 0 && !usingFallback && type !== 'maps') {
+    payload = await buildFallbackPayload(query, type, page, language);
     results = normalizeResults(payload);
   }
-  const officialSite = findOfficialSite(query);
+  const officialSite = type === 'maps' ? null : findOfficialSite(query);
   const ranked = rankResults(results, query, officialSite);
 
   sendJson(res, 200, {

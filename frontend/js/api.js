@@ -1,3 +1,5 @@
+import { getLanguage } from './languages.js';
+
 const DEFAULT_API_URL = 'http://localhost:3001';
 const HOSTED_API_URL = 'https://lodestar-c2zh.onrender.com';
 
@@ -22,7 +24,8 @@ export async function fetchCountry(query) {
   }
 }
 
-export async function fetchResults(query, type, page) {
+export async function fetchResults(query, type, page, language) {
+  const lang = language || getLanguage();
   const url =
     API_URL +
     '/api/search?q=' +
@@ -30,7 +33,9 @@ export async function fetchResults(query, type, page) {
     '&type=' +
     encodeURIComponent(type) +
     '&page=' +
-    page;
+    page +
+    '&lang=' +
+    encodeURIComponent(lang);
 
   let response;
   try {

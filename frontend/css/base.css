@@ -106,7 +106,7 @@ main:focus {
 .skip-link {
   position: fixed;
   top: -56px;
-  left: 12px;
+  inset-inline-start: 12px;
   z-index: 100;
   padding: 10px 16px;
   border-radius: 8px;
@@ -157,7 +157,8 @@ main:focus {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 6px 0 20px;
+  padding-block: 0;
+  padding-inline: 20px 6px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-pill);
   background: var(--surface);
@@ -193,7 +194,7 @@ main:focus {
   appearance: none;
   width: 16px;
   height: 16px;
-  margin-left: 6px;
+  margin-inline-start: 6px;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b8b9b' stroke-width='2.5' stroke-linecap='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'/%3E%3Cline x1='6' y1='6' x2='18' y2='18'/%3E%3C/svg%3E")
     no-repeat center / 16px 16px;
   cursor: pointer;
@@ -244,7 +245,7 @@ main:focus {
   background: var(--surface);
   box-shadow: var(--shadow-md);
   overflow: hidden;
-  text-align: left;
+  text-align: start;
 }
 
 .suggest__item {
@@ -252,7 +253,7 @@ main:focus {
   border-radius: 8px;
   font-size: 15px;
   color: var(--text);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;

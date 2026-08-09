@@ -6,6 +6,7 @@ const TYPE_LABELS = {
   images: 'Images',
   news: 'News',
   videos: 'Videos',
+  maps: 'Maps',
 };
 
 function typeLabel(type) {

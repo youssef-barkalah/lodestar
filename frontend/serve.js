@@ -40,8 +40,14 @@ createServer(async (req, res) => {
     });
     res.end(data);
   } catch (err) {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Not found');
+    try {
+      const notFound = await readFile(join(frontendDir, '404.html'));
+      res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(notFound);
+    } catch (err2) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Not found');
+    }
   }
 }).listen(port, () => {
   console.log('Lodestar frontend at http://localhost:' + port);

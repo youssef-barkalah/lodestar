@@ -85,7 +85,7 @@ async function fetchStatistics(ids) {
   return map;
 }
 
-export async function searchVideos(query) {
+export async function searchVideos(query, language) {
   if (!config.youtubeApiKey) return { results: [] };
 
   const params = new URLSearchParams({
@@ -96,6 +96,9 @@ export async function searchVideos(query) {
     q: query,
     key: config.youtubeApiKey,
   });
+  if (language && language !== 'any') {
+    params.set('relevanceLanguage', language);
+  }
   const json = await fetchJson(API + '?' + params.toString());
   if (!json || !json.items) return { results: [] };
 

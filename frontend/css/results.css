@@ -40,7 +40,7 @@
 
 .topbar__actions {
   flex: 0 0 auto;
-  margin-left: auto;
+  margin-inline-start: auto;
   display: flex;
   gap: 6px;
 }
@@ -56,7 +56,7 @@
 
   .topbar__actions {
     order: 2;
-    margin-left: auto;
+    margin-inline-start: auto;
   }
 
   .topbar__search {
@@ -494,7 +494,7 @@
 
 .video-card__duration {
   position: absolute;
-  right: 8px;
+  inset-inline-end: 8px;
   bottom: 8px;
   padding: 2px 6px;
   border-radius: 6px;
@@ -561,7 +561,7 @@
 }
 
 .pagination__side:last-child {
-  text-align: right;
+  text-align: end;
 }
 
 .loading {
@@ -645,4 +645,96 @@
   .results__list--videos {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
+
+  .maps__map {
+    height: 220px;
+  }
+}
+
+.results__lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: 10px;
+  padding-block: 3px;
+  padding-inline: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  vertical-align: middle;
+}
+
+.results__lang:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.results__lang-flag {
+  display: block;
+  width: 20px;
+  height: 15px;
+  border-radius: 3px;
+}
+
+.maps {
+  margin-bottom: 26px;
+}
+
+.maps__map {
+  display: block;
+  width: 100%;
+  height: 320px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+
+.maps__open {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-decoration: none;
+}
+
+.maps__open:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
+.map-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.map-card__title svg {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+.map-card__title a {
+  color: var(--accent-text);
+  text-decoration: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.map-card__title a:hover {
+  text-decoration: underline;
+}
+
+.map-card__meta {
+  margin-bottom: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
 }

@@ -15,11 +15,12 @@ const CATEGORY_MAP = {
   videos: 'videos',
 };
 
-export async function searchSearXNG(query, type, page) {
+export async function searchSearXNG(query, type, page, language) {
   const params = new URLSearchParams({ q: query, format: 'json' });
   const category = CATEGORY_MAP[type];
   if (category) params.set('categories', category);
   if (page > 1) params.set('pageno', String(page));
+  if (language && language !== 'any') params.set('language', language);
 
   const url = config.searxngUrl + '/search?' + params.toString();
   const controller = new AbortController();

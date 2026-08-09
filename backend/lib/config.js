@@ -37,6 +37,7 @@ export const config = {
   searchTimeout: Number(process.env.SEARCH_TIMEOUT || 20000),
   providerTimeout: Number(process.env.PROVIDER_TIMEOUT || 10000),
   youtubeApiKey: process.env.YOUTUBE_API_KEY || '',
+  openverseToken: process.env.OPENVERSE_TOKEN || '',
   supabaseUrl: (process.env.SUPABASE_URL || '').replace(/\/+$/, ''),
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
   supabaseServiceRole: process.env.SUPABASE_SERVICE_ROLE_KEY || '',

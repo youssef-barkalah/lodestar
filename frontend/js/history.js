@@ -4,7 +4,7 @@ const HISTORY_KEY = 'lodestar.searchHistory';
 const ITEMS_KEY = 'lodestar.historyItems';
 const MAX_ITEMS = 25;
 const MAX_ITEMS_ALWAYS = 100;
-const VALID_TYPES = ['web', 'images', 'news', 'videos'];
+const VALID_TYPES = ['web', 'images', 'news', 'videos', 'maps'];
 
 function read(key) {
   try {

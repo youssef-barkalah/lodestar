@@ -2,8 +2,9 @@ import { fetchResults, fetchCountry, API_URL } from './api.js';
 import { record } from './history.js';
 import { initSuggestions } from './suggestions.js';
 import { directionOf } from './direction.js';
+import { getLanguage, languageInfo, flagUrl } from './languages.js';
 
-const VALID_TYPES = ['web', 'images', 'news', 'videos'];
+const VALID_TYPES = ['web', 'images', 'news', 'videos', 'maps'];
 
 const params = new URLSearchParams(window.location.search);
 const query = (params.get('q') || '').trim();
@@ -11,6 +12,7 @@ const type = VALID_TYPES.includes(params.get('type'))
   ? params.get('type')
   : 'web';
 const page = Math.max(1, parseInt(params.get('page'), 10) || 1);
+const lang = getLanguage();
 
 const root = document.getElementById('results-root');
 const heading = document.getElementById('results-heading');
@@ -73,7 +75,12 @@ function initControls() {
     tabs.querySelectorAll('.search-tabs__link').forEach(function (link) {
       const linkType = link.getAttribute('data-type');
       link.href =
-        'search.html?q=' + encodeURIComponent(query) + '&type=' + linkType;
+        'search.html?q=' +
+        encodeURIComponent(query) +
+        '&type=' +
+        linkType +
+        '&lang=' +
+        encodeURIComponent(lang);
       if (linkType === type) {
         link.setAttribute('aria-current', 'true');
       } else {
@@ -327,6 +334,99 @@ const ARROW_LEFT =
 const ARROW_RIGHT =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>';
 
+function mapsEmbed(results) {
+  const first =
+    results.filter(function (result) {
+      return result.bbox && result.bbox.length === 4;
+    })[0] ||
+    results.filter(function (result) {
+      return result.lat != null && result.lon != null;
+    })[0];
+  if (!first) return '';
+
+  let src;
+  if (first.bbox && first.bbox.length === 4) {
+    const minLon = first.bbox[3];
+    const minLat = first.bbox[0];
+    const maxLon = first.bbox[2];
+    const maxLat = first.bbox[1];
+    src =
+      'https://www.openstreetmap.org/export/embed.html?bbox=' +
+      encodeURIComponent(minLon + ',' + minLat + ',' + maxLon + ',' + maxLat) +
+      '&layer=mapnik';
+    if (first.lat != null) {
+      src +=
+        '&marker=' + encodeURIComponent(first.lat + ',' + first.lon);
+    }
+  } else {
+    const lon = first.lon;
+    const lat = first.lat;
+    src =
+      'https://www.openstreetmap.org/export/embed.html?bbox=' +
+      encodeURIComponent(
+        (lon - 0.1) + ',' + (lat - 0.05) + ',' + (lon + 0.1) + ',' + (lat + 0.05)
+      ) +
+      '&layer=mapnik&marker=' +
+      encodeURIComponent(lat + ',' + lon);
+  }
+
+  return (
+    '<div class="maps">' +
+    '<iframe class="maps__map" loading="lazy" title="Map" src="' +
+    escapeHtml(src) +
+    '" referrerpolicy="no-referrer"></iframe>' +
+    '<a class="maps__open" href="https://www.openstreetmap.org/" target="_blank" rel="noopener">Open in OpenStreetMap</a>' +
+    '</div>'
+  );
+}
+
+function mapItem(result, index) {
+  const meta = result.description
+    ? '<p class="map-card__meta"' + dirAttr(result.description) + '>' +
+      escapeHtml(result.description) +
+      '</p>'
+    : '';
+  return (
+    '<li class="results__item" style="--i:' +
+    index +
+    '">' +
+    '<article class="map-card">' +
+    '<h2 class="map-card__title"' +
+    dirAttr(result.title) +
+    '>' +
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"></path>' +
+    '<circle cx="12" cy="10" r="3"></circle>' +
+    '</svg>' +
+    '<a href="' +
+    escapeHtml(result.url) +
+    '" target="_blank" rel="noopener">' +
+    escapeHtml(result.title) +
+    '</a></h2>' +
+    meta +
+    '</article>' +
+    '</li>'
+  );
+}
+
+function langChip() {
+  const info = languageInfo(lang);
+  const flag = info.flag
+    ? '<img class="results__lang-flag" src="' +
+      escapeHtml(flagUrl(info.flag)) +
+      '" alt="" width="20" height="15" loading="lazy" referrerpolicy="no-referrer">'
+    : '';
+  return (
+    '<a class="results__lang" href="settings.html" title="Search language: ' +
+    escapeHtml(info.name) +
+    '">' +
+    flag +
+    '<span>' +
+    escapeHtml(info.name) +
+    '</span></a>'
+  );
+}
+
 function countryMapUrl(country) {
   const span = Math.max(0.4, Number(country.span) || 8);
   const minLat = country.lat - span * 0.6;
@@ -479,6 +579,8 @@ function paginationMarkup(data) {
       encodeURIComponent(data.query) +
       '&type=' +
       data.type +
+      '&lang=' +
+      encodeURIComponent(lang) +
       '&page=' +
       p
     );
@@ -514,7 +616,12 @@ function renderResults(data) {
   setLive(data.results.length + ' results for ' + data.query);
 
   let html =
-    '<p class="results__meta">' + data.results.length + ' results</p>';
+    '<p class="results__meta">' +
+    data.results.length +
+    ' results' +
+    langChip() +
+    '</p>';
+  if (data.type === 'maps') html += mapsEmbed(data.results);
   if (data.type === 'web' && page === 1 && countryCard) {
     html += countryMarkup(countryCard);
   }
@@ -527,7 +634,9 @@ function renderResults(data) {
         ? newsItem
         : data.type === 'videos'
           ? videoItem
-          : webItem;
+          : data.type === 'maps'
+            ? mapItem
+            : webItem;
 
   const items = data.results
     .map(function (result, index) {
@@ -587,7 +696,7 @@ async function runSearch() {
   try {
     const wantCountry = type === 'web' && page === 1;
     const [data, country] = await Promise.all([
-      fetchResults(query, type, page),
+      fetchResults(query, type, page, lang),
       wantCountry ? fetchCountry(query) : Promise.resolve(null),
     ]);
     countryCard = country;

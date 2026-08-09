@@ -39,6 +39,9 @@ export function normalizeResults(payload) {
     if (item.views != null) result.views = item.views;
     if (item.sourceUrl) result.sourceUrl = item.sourceUrl;
     if (Array.isArray(item.related)) result.related = item.related;
+    if (item.lat != null) result.lat = Number(item.lat);
+    if (item.lon != null) result.lon = Number(item.lon);
+    if (Array.isArray(item.bbox)) result.bbox = item.bbox;
     if (item.thumbnail || item.img_src) {
       result.thumbnail = item.thumbnail || item.img_src;
     }

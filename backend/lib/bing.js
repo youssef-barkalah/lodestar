@@ -58,9 +58,14 @@ function parseItems(xml) {
   return results;
 }
 
-export async function searchBing(query) {
+export async function searchBing(query, language) {
+  const lang = language && language !== 'any' ? language : 'en';
   const url =
-    SEARCH_URL + '?q=' + encodeURIComponent(query) + '&format=rss&setlang=en';
+    SEARCH_URL +
+    '?q=' +
+    encodeURIComponent(query) +
+    '&format=rss&setlang=' +
+    encodeURIComponent(lang);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.providerTimeout);

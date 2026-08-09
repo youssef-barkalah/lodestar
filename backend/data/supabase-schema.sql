@@ -23,5 +23,6 @@ create table if not exists public.user_sync (
   history_setting text not null default '24h',
   theme text not null default 'system',
   suggestions text not null default 'on',
+  language text not null default 'en',
   updated_at timestamptz not null default now()
 );

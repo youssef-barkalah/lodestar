@@ -69,6 +69,7 @@ const DEFAULT_SYNC = {
   history: [],
   theme: 'system',
   suggestions: 'on',
+  language: 'en',
 };
 
 async function findUserBy(field, value) {
@@ -164,6 +165,7 @@ export async function session(token) {
         theme: typeof row.theme === 'string' ? row.theme : 'system',
         suggestions:
           typeof row.suggestions === 'string' ? row.suggestions : 'on',
+        language: typeof row.language === 'string' ? row.language : 'en',
         history: Array.isArray(row.history) ? row.history : [],
       }
     : DEFAULT_SYNC;
@@ -181,6 +183,7 @@ export async function setSync(token, sync) {
       history_setting: sync.historySetting || '24h',
       theme: sync.theme || 'system',
       suggestions: sync.suggestions || 'on',
+      language: sync.language || 'en',
       history: Array.isArray(sync.history) ? sync.history : [],
       updated_at: new Date().toISOString(),
     },

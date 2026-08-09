@@ -9,6 +9,7 @@
   <link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
   <link rel="preload" href="../assets/fonts/raleway-latin.woff2" as="font" type="font/woff2" crossorigin>
   <script src="js/head-theme.js"></script>
+  <script src="js/head-lang.js"></script>
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/settings.css">
@@ -143,8 +144,7 @@
     <section class="settings__section" aria-labelledby="search-heading">
       <h2 id="search-heading">Search</h2>
       <fieldset class="settings__fieldset">
-        <legend class="settings__legend">Search suggestions</legend>
-        <div class="settings__options">
+        <legend class="settings__legend">Search suggestions</legend>        <div class="settings__options">
           <label class="settings__option">
             <input type="radio" name="suggestions" value="on">
             <span class="settings__option-icon" aria-hidden="true">
@@ -171,6 +171,12 @@
             </span>
           </label>
         </div>
+      </fieldset>
+
+      <fieldset class="settings__fieldset">
+        <legend class="settings__legend">Search language</legend>
+        <p class="settings__hint">Prefers results in your language across Web, News, Videos and Maps.</p>
+        <div class="lang-grid" id="lang-grid"></div>
       </fieldset>
     </section>
   </main>

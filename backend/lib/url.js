@@ -18,7 +18,14 @@ export function normalizeUrl(input) {
     let host = normalizeHost(url.hostname);
     let path = url.pathname;
     if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
-    return host + path;
+    let key = host + path;
+    if (
+      (host === 'youtube.com' && path === '/watch') ||
+      host === 'openstreetmap.org'
+    ) {
+      key += url.search;
+    }
+    return key;
   } catch (err) {
     return String(input || '').toLowerCase().trim();
   }

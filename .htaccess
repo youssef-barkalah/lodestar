@@ -1,0 +1,43 @@
+# Lodestar — Apache configuration
+# Applies when the site is served by Apache (cPanel, shared hosting, etc.).
+# GitHub Pages ignores this file; it is kept for Apache deployments.
+
+# Never allow directory browsing.
+Options -Indexes
+
+# Custom 404 page (redirects to the branded Lodestar 404).
+ErrorDocument 404 /404.html
+
+# Block access to sensitive files and directories.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # No source-control, tooling or backend directories over HTTP.
+  RewriteRule ^\.git/ - [F,L]
+  RewriteRule ^\.github/ - [F,L]
+  RewriteRule ^backend/ - [F,L]
+  RewriteRule ^searxng/ - [F,L]
+  RewriteRule ^node_modules/ - [F,L]
+
+  # No secret or environment files over HTTP.
+  RewriteRule (^|/)\.env(\..*)?$ - [F,L]
+  RewriteRule (^|/)\.env\.example$ - [F,L]
+  RewriteRule (^|/)\.gitignore$ - [F,L]
+  RewriteRule (^|/)\.htaccess$ - [F,L]
+  RewriteRule (^|/)package(-lock)?\.json$ - [F,L]
+  RewriteRule (^|/)server\.js$ - [F,L]
+</IfModule>
+
+# Deny any dotfile that makes it past the rules above.
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
+
+# Basic security headers.
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "DENY"
+  Header set Referrer-Policy "no-referrer"
+  Header set X-XSS-Protection "1; mode=block"
+  Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
