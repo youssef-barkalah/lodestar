@@ -1,10 +1,14 @@
 import { fetchResults, fetchCountry, API_URL } from './api.js';
 import { record } from './history.js';
 import { initSuggestions } from './suggestions.js';
+import { initVoice } from './voice.js';
+import { applyBang } from './bangs.js';
 import { directionOf } from './direction.js';
 import { getLanguage, languageInfo, flagUrl } from './languages.js';
+import { isSaved, toggle as toggleSaved } from './bookmarks.js';
 
 const VALID_TYPES = ['web', 'images', 'news', 'videos', 'maps'];
+const VALID_TIMES = ['day', 'week', 'month', 'year'];
 
 const params = new URLSearchParams(window.location.search);
 const query = (params.get('q') || '').trim();
@@ -12,6 +16,12 @@ const type = VALID_TYPES.includes(params.get('type'))
   ? params.get('type')
   : 'web';
 const page = Math.max(1, parseInt(params.get('page'), 10) || 1);
+const time = VALID_TIMES.includes(params.get('time'))
+  ? params.get('time')
+  : 'any';
+const rawSafeSearch = params.get('safesearch');
+const safeSearch =
+  rawSafeSearch !== null ? rawSafeSearch === '1' : storedSafeSearch();
 const lang = getLanguage();
 
 const root = document.getElementById('results-root');
@@ -21,6 +31,39 @@ const typeInput = document.getElementById('search-type');
 const tabs = document.getElementById('search-tabs');
 
 let countryCard = null;
+
+function storedSafeSearch() {
+  try {
+    return localStorage.getItem('lodestar.safeSearch') === 'on';
+  } catch (err) {
+    return false;
+  }
+}
+
+function setStoredSafeSearch(value) {
+  try {
+    localStorage.setItem('lodestar.safeSearch', value ? 'on' : 'off');
+  } catch (err) {}
+}
+
+const ACTIVE_CLASS = 'is-key-active';
+
+function resultLinks() {
+  return Array.prototype.slice.call(
+    root.querySelectorAll('.results__list .result__title a, .results__list .map-card__title a')
+  );
+}
+
+function focusResult(links, index) {
+  if (!links.length) return;
+  const idx = Math.max(0, Math.min(links.length - 1, index));
+  links.forEach(function (link, i) {
+    const item = link.closest('.results__item');
+    if (item) item.classList.toggle(ACTIVE_CLASS, i === idx);
+  });
+  links[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+  return idx;
+}
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, function (c) {
@@ -68,19 +111,62 @@ function dirAttr(text) {
   return ' dir="' + directionOf(text) + '"';
 }
 
+function searchUrl(overrides) {
+  const next = {
+    q: query,
+    type: type,
+    lang: lang,
+    time: time,
+    safesearch: safeSearch ? '1' : '0',
+  };
+  if (overrides) {
+    Object.keys(overrides).forEach(function (key) {
+      if (overrides[key] === null || overrides[key] === undefined) {
+        delete next[key];
+      } else {
+        next[key] = overrides[key];
+      }
+    });
+  }
+  return (
+    'search.html?' +
+    Object.keys(next)
+      .map(function (key) {
+        return encodeURIComponent(key) + '=' + encodeURIComponent(next[key]);
+      })
+      .join('&')
+  );
+}
+
 function initControls() {
-  if (input) input.value = query;
+  if (input) {
+    input.value = query;
+    input.setAttribute('lang', lang === 'any' ? 'en' : lang);
+    initSuggestions(input);
+    initVoice(input);
+    const form = input.form;
+    if (form) {
+      form.addEventListener('submit', function (event) {
+        const bang = applyBang(input.value);
+        if (!bang) return;
+        event.preventDefault();
+        if (bang.redirect) {
+          window.location.href = bang.redirect;
+        } else {
+          const current = new URLSearchParams(window.location.search);
+          current.set('q', bang.query);
+          current.set('type', bang.type);
+          current.delete('page');
+          window.location.href = 'search.html?' + current.toString();
+        }
+      });
+    }
+  }
   if (typeInput) typeInput.value = type;
   if (tabs) {
     tabs.querySelectorAll('.search-tabs__link').forEach(function (link) {
       const linkType = link.getAttribute('data-type');
-      link.href =
-        'search.html?q=' +
-        encodeURIComponent(query) +
-        '&type=' +
-        linkType +
-        '&lang=' +
-        encodeURIComponent(lang);
+      link.href = searchUrl({ type: linkType });
       if (linkType === type) {
         link.setAttribute('aria-current', 'true');
       } else {
@@ -89,8 +175,52 @@ function initControls() {
     });
   }
   if (query && page === 1) record(query, type);
-  if (input) initSuggestions(input);
 }
+
+function initShortcuts() {
+  document.addEventListener('keydown', function (event) {
+    const target = event.target;
+    const typing =
+      target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable);
+    if (event.key === '/' && !typing) {
+      event.preventDefault();
+      if (input) input.focus();
+      return;
+    }
+    if (event.key === 'Escape' && !typing) {
+      if (input) {
+        input.blur();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
+    }
+    if (typing || event.ctrlKey || event.metaKey || event.altKey) return;
+
+    if (event.key === 'j' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      activeResult = focusResult(resultLinks(), activeResult + 1);
+    } else if (event.key === 'k' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      activeResult = focusResult(resultLinks(), activeResult - 1);
+    } else if (event.key === 'Enter' && activeResult >= 0) {
+      event.preventDefault();
+      const links = resultLinks();
+      if (links[activeResult]) links[activeResult].click();
+    } else if (event.key === 'n' || event.key === 'p') {
+      const isNext = event.key === 'n';
+      const link = isNext
+        ? document.querySelector('.pagination .pagination__side:last-child a')
+        : document.querySelector('.pagination .pagination__side:first-child a');
+      if (link) window.location.href = link.getAttribute('href');
+    }
+  });
+}
+
+let activeResult = -1;
 
 function officialMarkup(official) {
   const links = (official.links || [])
@@ -144,6 +274,49 @@ function faviconMarkup(result) {
   );
 }
 
+function saveMarkup(url, title) {
+  const saved = isSaved(url);
+  return (
+    '<button type="button" class="result__save' +
+    (saved ? ' is-saved' : '') +
+    '" data-save data-url="' +
+    escapeHtml(url) +
+    '" data-title="' +
+    escapeHtml(title) +
+    '" aria-label="' +
+    (saved ? 'Remove from saved' : 'Save result') +
+    '" title="' +
+    (saved ? 'Remove from saved' : 'Save result') +
+    '">' +
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"></path>' +
+    '</svg>' +
+    '</button>'
+  );
+}
+
+function wireSaveButtons() {
+  root.querySelectorAll('[data-save]').forEach(function (button) {
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      const url = button.getAttribute('data-url');
+      const title = button.getAttribute('data-title');
+      const saved = toggleSaved(url, title);
+      button.classList.toggle('is-saved', saved);
+      button.setAttribute(
+        'aria-label',
+        saved ? 'Remove from saved' : 'Save result'
+      );
+      button.setAttribute('title', saved ? 'Remove from saved' : 'Save result');
+      const live = document.getElementById('results-live');
+      if (live) {
+        live.textContent = saved ? 'Saved.' : 'Removed from saved.';
+      }
+    });
+  });
+}
+
 function webItem(result, index) {
   return (
     '<li class="results__item" style="--i:' +
@@ -158,7 +331,9 @@ function webItem(result, index) {
     escapeHtml(result.url) +
     '" target="_blank" rel="noopener">' +
     escapeHtml(result.title) +
-    '</a></h2>' +
+    '</a>' +
+    saveMarkup(result.url, result.title) +
+    '</h2>' +
     '<p class="result__url"' +
     dirAttr(result.displayUrl) +
     '>' +
@@ -267,11 +442,14 @@ function newsItem(result, index) {
     '<article class="result">' +
     '<h2 class="result__title"' +
     dirAttr(result.title) +
-    '><a href="' +
+    '>' +
+    '<a href="' +
     escapeHtml(result.url) +
     '" target="_blank" rel="noopener">' +
     escapeHtml(result.title) +
-    '</a></h2>' +
+    '</a>' +
+    saveMarkup(result.url, result.title) +
+    '</h2>' +
     meta +
     '<p class="result__desc"' +
     dirAttr(result.description) +
@@ -427,6 +605,94 @@ function langChip() {
   );
 }
 
+function filterChips() {
+  const chips = [];
+  const labels = { day: 'Past 24h', week: 'Past week', month: 'Past month', year: 'Past year' };
+  const showTime = type === 'web' || type === 'news';
+  if (showTime) {
+    const timeValues = ['any'].concat(VALID_TIMES);
+    timeValues.forEach(function (value) {
+      const label = value === 'any' ? 'Any time' : labels[value];
+      const className =
+        'filter-chip' + (time === value ? ' is-active' : '');
+      chips.push(
+        '<a class="' +
+          className +
+          '" href="' +
+          searchUrl({ time: value, page: null }) +
+          '"' +
+          (time === value ? ' aria-current="true"' : '') +
+          '>' +
+          label +
+          '</a>'
+      );
+    });
+  }
+  const safeLabel = safeSearch ? 'Safe search: on' : 'Safe search: off';
+  const targetSafe = safeSearch ? '0' : '1';
+  chips.push(
+    '<a class="filter-chip" data-safechip href="' +
+      searchUrl({ safesearch: targetSafe, page: null }) +
+      '" role="button" aria-pressed="' +
+      (safeSearch ? 'true' : 'false') +
+      '" title="Toggle safe search">' +
+      safeLabel +
+      '</a>'
+  );
+  return '<div class="filter-bar" role="group" aria-label="Result filters">' + chips.join('') + '</div>';
+}
+
+function wireSafeChip() {
+  const chip = root.querySelector('[data-safechip]');
+  if (!chip) return;
+  chip.addEventListener('click', function () {
+    setStoredSafeSearch(!safeSearch);
+  });
+}
+
+function instantMarkup(instant) {
+  if (!instant) return '';
+  const prefix =
+    instant.kind === 'math'
+      ? '<span class="instant__label">Calculator</span>'
+      : '<span class="instant__label">Conversion</span>';
+  return (
+    '<section class="instant" aria-label="Instant answer">' +
+    prefix +
+    '<p class="instant__result">' +
+    escapeHtml(instant.text) +
+    '</p>' +
+    '</section>'
+  );
+}
+
+function shareMarkup() {
+  if (typeof navigator.share !== 'function') return '';
+  return (
+    '<button type="button" class="results__share" id="results-share">' +
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<circle cx="18" cy="5" r="3"></circle>' +
+    '<circle cx="6" cy="12" r="3"></circle>' +
+    '<circle cx="18" cy="19" r="3"></circle>' +
+    '<line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>' +
+    '<line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>' +
+    '</svg>' +
+    '<span>Share</span>' +
+    '</button>'
+  );
+}
+
+function wireShare() {
+  const button = document.getElementById('results-share');
+  if (!button) return;
+  button.addEventListener('click', function () {
+    const url = window.location.href;
+    navigator
+      .share({ title: query + ' — Lodestar', text: query, url: url })
+      .catch(function () {});
+  });
+}
+
 function countryMapUrl(country) {
   const span = Math.max(0.4, Number(country.span) || 8);
   const minLat = country.lat - span * 0.6;
@@ -573,27 +839,15 @@ async function loadCountrySlideshow(section, name) {
 }
 
 function paginationMarkup(data) {
-  const pageUrl = function (p) {
-    return (
-      'search.html?q=' +
-      encodeURIComponent(data.query) +
-      '&type=' +
-      data.type +
-      '&lang=' +
-      encodeURIComponent(lang) +
-      '&page=' +
-      p
-    );
-  };
   const prev =
     data.page > 1
       ? '<div class="pagination__side"><a class="btn" href="' +
-        pageUrl(data.page - 1) +
+        searchUrl({ page: data.page - 1 }) +
         '">Previous</a></div>'
       : '<div class="pagination__side"></div>';
   const next =
     '<div class="pagination__side"><a class="btn" href="' +
-    pageUrl(data.page + 1) +
+    searchUrl({ page: data.page + 1 }) +
     '">Next</a></div>';
   return (
     '<nav class="pagination" aria-label="Results pages">' + prev + next + '</nav>'
@@ -616,11 +870,16 @@ function renderResults(data) {
   setLive(data.results.length + ' results for ' + data.query);
 
   let html =
+    '<div class="results__head">' +
     '<p class="results__meta">' +
     data.results.length +
     ' results' +
     langChip() +
-    '</p>';
+    '</p>' +
+    shareMarkup() +
+    '</div>';
+  html += filterChips();
+  html += instantMarkup(data.instant);
   if (data.type === 'maps') html += mapsEmbed(data.results);
   if (data.type === 'web' && page === 1 && countryCard) {
     html += countryMarkup(countryCard);
@@ -659,6 +918,9 @@ function renderResults(data) {
   }
 
   root.innerHTML = html;
+  wireSaveButtons();
+  wireSafeChip();
+  wireShare();
 }
 
 function showNoResults() {
@@ -688,7 +950,11 @@ function showError(message) {
     '<h2 class="empty__title">' +
     escapeHtml(message) +
     '</h2>' +
+    '<p class="empty__text">Please check your connection and try again.</p>' +
+    '<button type="button" class="btn empty__retry" id="retry-search">Try again</button>' +
     '</div>';
+  const retry = document.getElementById('retry-search');
+  if (retry) retry.addEventListener('click', runSearch);
 }
 
 async function runSearch() {
@@ -696,7 +962,7 @@ async function runSearch() {
   try {
     const wantCountry = type === 'web' && page === 1;
     const [data, country] = await Promise.all([
-      fetchResults(query, type, page, lang),
+      fetchResults(query, type, page, lang, { time: time, safeSearch: safeSearch }),
       wantCountry ? fetchCountry(query) : Promise.resolve(null),
     ]);
     countryCard = country;
@@ -710,6 +976,7 @@ async function runSearch() {
 }
 
 initControls();
+initShortcuts();
 
 if (!query) {
   showNoQuery();

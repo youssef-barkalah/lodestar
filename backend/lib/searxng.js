@@ -15,12 +15,22 @@ const CATEGORY_MAP = {
   videos: 'videos',
 };
 
-export async function searchSearXNG(query, type, page, language) {
+export async function searchSearXNG(
+  query,
+  type,
+  page,
+  language,
+  options
+) {
   const params = new URLSearchParams({ q: query, format: 'json' });
   const category = CATEGORY_MAP[type];
   if (category) params.set('categories', category);
   if (page > 1) params.set('pageno', String(page));
   if (language && language !== 'any') params.set('language', language);
+  if (options && options.time && options.time !== 'any') {
+    params.set('time_range', options.time);
+  }
+  if (options && options.safeSearch) params.set('safesearch', '1');
 
   const url = config.searxngUrl + '/search?' + params.toString();
   const controller = new AbortController();

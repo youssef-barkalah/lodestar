@@ -62,15 +62,3 @@ export function languageInfo(code) {
 export function flagUrl(flag) {
   return flag ? FLAG_BASE + '/' + flag + '.png' : '';
 }
-
-export function isRtl(code) {
-  return RTL_LANGS.indexOf(code) !== -1;
-}
-
-export function applyLanguageDirection(code) {
-  const lang = code && code !== 'any' ? code : 'en';
-  document.documentElement.lang = lang;
-  document.documentElement.dir = isRtl(code) ? 'rtl' : 'ltr';
-}
-
-const RTL_LANGS = ['ar', 'he', 'fa'];

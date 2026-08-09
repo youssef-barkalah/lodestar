@@ -234,7 +234,7 @@
 
 .history__item {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
@@ -283,6 +283,23 @@
   text-transform: uppercase;
 }
 
+.history__remove {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.history__remove:hover {
+  border-color: #e5484d;
+  color: #e5484d;
+}
+
 .empty {
   margin-top: 40px;
   text-align: center;
@@ -314,6 +331,14 @@
 
   .history__meta {
     display: none;
+  }
+
+  .history__type {
+    display: none;
+  }
+
+  .history__remove {
+    grid-column: 2;
   }
 
   .lang-grid {

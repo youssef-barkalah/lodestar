@@ -24,18 +24,30 @@ export async function fetchCountry(query) {
   }
 }
 
-export async function fetchResults(query, type, page, language) {
+export async function fetchResults(query, type, page, language, options) {
   const lang = language || getLanguage();
+  const params = {
+    q: query,
+    type: type,
+    page: page,
+    lang: lang,
+  };
+  if (options && options.time && options.time !== 'any') {
+    params.time = options.time;
+  }
+  if (options && options.safeSearch) {
+    params.safesearch = '1';
+  }
   const url =
     API_URL +
-    '/api/search?q=' +
-    encodeURIComponent(query) +
-    '&type=' +
-    encodeURIComponent(type) +
-    '&page=' +
-    page +
-    '&lang=' +
-    encodeURIComponent(lang);
+    '/api/search?' +
+    Object.keys(params)
+      .map(function (key) {
+        return (
+          encodeURIComponent(key) + '=' + encodeURIComponent(params[key])
+        );
+      })
+      .join('&');
 
   let response;
   try {

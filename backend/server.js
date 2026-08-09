@@ -9,11 +9,17 @@ import { getSuggestions } from './lib/suggest.js';
 import { getIcon, clearIconCache } from './lib/icon.js';
 import { lookupCountry } from './lib/country.js';
 import { searchMaps } from './lib/nominatim.js';
+import { instantAnswer } from './lib/instant.js';
 import * as auth from './lib/auth.js';
+import * as cache from './lib/cache.js';
+import * as rateLimit from './lib/rate-limit.js';
 
 const VALID_TYPES = ['web', 'images', 'news', 'videos', 'maps'];
 const VALID_HISTORY = ['off', '24h', 'always'];
 const VALID_THEMES = ['light', 'dark', 'system'];
+const VALID_TIMES = ['day', 'week', 'month', 'year'];
+const SEARCH_TTL = 5 * 60 * 1000;
+const startedAt = Date.now();
 
 function sendJson(res, status, body) {
   const payload = JSON.stringify(body);
@@ -104,12 +110,31 @@ function sanitizeSync(body) {
   return sync;
 }
 
+function sendRateLimited(res, rate) {
+  const body = JSON.stringify({
+    error: {
+      code: 'rate_limited',
+      message: 'Too many attempts. Please wait a moment and try again.',
+    },
+  });
+  res.writeHead(429, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Retry-After': String(rate.retryAfter),
+  });
+  res.end(body);
+}
+
 async function handleSearch(req, res) {
   const url = new URL(req.url, 'http://localhost');
   const query = (url.searchParams.get('q') || '').trim();
   const type = url.searchParams.get('type') || 'web';
   const rawLang = String(url.searchParams.get('lang') || 'any').toLowerCase();
   const language = /^[a-z]{2}$/.test(rawLang) ? rawLang : 'any';
+  const rawTime = String(url.searchParams.get('time') || 'any').toLowerCase();
+  const time = VALID_TIMES.includes(rawTime) ? rawTime : 'any';
+  const safeSearch = url.searchParams.get('safesearch') === '1';
   const page = Math.max(
     1,
     Math.min(50, parseInt(url.searchParams.get('page') || '1', 10) || 1)
@@ -134,13 +159,23 @@ async function handleSearch(req, res) {
     return;
   }
 
+  const cacheKey = ['search', query, type, page, language, time, safeSearch].join(
+    '|'
+  );
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    sendJson(res, 200, cached);
+    return;
+  }
+
   let payload;
   let usingFallback = false;
+  const options = { time, safeSearch };
   if (type === 'maps') {
     payload = await searchMaps(query, language);
   } else {
     try {
-      payload = await searchSearXNG(query, type, page, language);
+      payload = await searchSearXNG(query, type, page, language, options);
     } catch (err) {
       if (err instanceof UpstreamError) {
         console.warn(
@@ -161,15 +196,22 @@ async function handleSearch(req, res) {
   }
   const officialSite = type === 'maps' ? null : findOfficialSite(query);
   const ranked = rankResults(results, query, officialSite);
-
-  sendJson(res, 200, {
+  const responseBody = {
     query,
     type,
     page,
     count: ranked.length,
+    time,
+    safeSearch,
     official: officialSite ? toApiSite(officialSite) : null,
     results: ranked,
-  });
+  };
+  if (type === 'web' && page === 1) {
+    const instant = instantAnswer(query);
+    if (instant) responseBody.instant = instant;
+  }
+  cache.set(cacheKey, responseBody, SEARCH_TTL);
+  sendJson(res, 200, responseBody);
 }
 
 async function handleSuggest(req, res) {
@@ -210,6 +252,8 @@ async function handleIcon(req, res) {
 }
 
 async function handleRegister(req, res) {
+  const rate = rateLimit.limit(req);
+  if (!rate.allowed) return sendRateLimited(res, rate);
   try {
     const body = await readBody(req);
     const username = String(body.username || '').trim();
@@ -224,6 +268,8 @@ async function handleRegister(req, res) {
 }
 
 async function handleLogin(req, res) {
+  const rate = rateLimit.limit(req);
+  if (!rate.allowed) return sendRateLimited(res, rate);
   try {
     const body = await readBody(req);
     const username = String(body.username || '').trim();
@@ -233,6 +279,15 @@ async function handleLogin(req, res) {
   } catch (err) {
     authError(res, err.message);
   }
+}
+
+function handleHealth(req, res) {
+  sendJson(res, 200, {
+    ok: true,
+    service: 'lodestar-backend',
+    uptime: Math.round((Date.now() - startedAt) / 1000),
+    timestamp: new Date().toISOString(),
+  });
 }
 
 async function handleLogout(req, res) {
@@ -311,6 +366,10 @@ const server = createServer((req, res) => {
   }
   if (req.method === 'GET' && pathname === '/api/icon') {
     handleIcon(req, res);
+    return;
+  }
+  if (req.method === 'GET' && pathname === '/api/health') {
+    handleHealth(req, res);
     return;
   }
   if (req.method === 'POST' && pathname === '/api/auth/register') {

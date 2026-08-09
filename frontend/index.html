@@ -1,15 +1,19 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Lodestar — Private Search</title>
+  <title>Lodestar â€” Private Search</title>
   <meta name="description" content="Lodestar is a fast, private, minimal internet search engine. No tracking, no ads, no clutter.">
   <meta name="referrer" content="no-referrer">
   <link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#443199">
+  <link rel="apple-touch-icon" href="../assets/icon-192.png">
   <link rel="preload" href="../assets/fonts/raleway-latin.woff2" as="font" type="font/woff2" crossorigin>
   <script src="js/head-theme.js"></script>
   <script src="js/head-lang.js"></script>
+  <script src="js/sw-register.js"></script>
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/home.css">
@@ -24,6 +28,11 @@
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
           <path d="M3 3v5h5"></path>
           <path d="M12 7v5l4 2"></path>
+        </svg>
+      </a>
+      <a class="settings-icon" href="bookmarks.html" aria-label="Saved" title="Saved">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"></path>
         </svg>
       </a>
       <button class="settings-icon" type="button" id="clear-cache" aria-label="Clear image cache" title="Clear image cache">

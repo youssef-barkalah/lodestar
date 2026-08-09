@@ -18,13 +18,13 @@ import {
   getLanguage,
   setLanguage,
   flagUrl,
-  applyLanguageDirection,
 } from './languages.js';
 
 const HISTORY_KEY = 'lodestar.searchHistory';
 const DEFAULT_HISTORY = '24h';
 const THEME_KEY = 'lodestar.theme';
 const SUGGESTIONS_KEY = 'lodestar.showSuggestions';
+const SAFE_SEARCH_KEY = 'lodestar.safeSearch';
 
 const VALID_HISTORY = ['off', '24h', 'always'];
 const VALID_THEMES = ['light', 'dark', 'system'];
@@ -115,12 +115,27 @@ function initSuggestionsSetting() {
   });
 }
 
+export function safeSearchEnabled() {
+  return load(SAFE_SEARCH_KEY, 'off') === 'on';
+}
+
+function initSafeSearch() {
+  const radios = initRadioGroup(
+    'safesearch',
+    safeSearchEnabled() ? 'on' : 'off'
+  );
+  radios.forEach(function (radio) {
+    radio.addEventListener('change', function () {
+      if (radio.checked) save(SAFE_SEARCH_KEY, radio.value);
+    });
+  });
+}
+
 function initLanguage() {
   const grid = document.getElementById('lang-grid');
   if (!grid) return;
 
   const current = getLanguage();
-  applyLanguageDirection(current);
   const options = [{ code: 'any', name: 'All languages', flag: '' }].concat(
     LANGUAGES
   );
@@ -158,7 +173,6 @@ function initLanguage() {
       radio.addEventListener('change', function () {
         if (radio.checked) {
           setLanguage(radio.value);
-          applyLanguageDirection(radio.value);
           pushSetting({ language: radio.value });
           grid.querySelectorAll('.lang-option').forEach(function (label) {
             const input = label.querySelector('input');
@@ -202,7 +216,6 @@ function syncDown() {
         })
       ) {
         setLanguage(value);
-        applyLanguageDirection(value);
         initLanguage();
       }
     }
@@ -346,6 +359,7 @@ function initBack() {
 initTheme();
 initHistory();
 initSuggestionsSetting();
+initSafeSearch();
 initLanguage();
 renderAccount();
 initBack();

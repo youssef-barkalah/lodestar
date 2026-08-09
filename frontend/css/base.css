@@ -231,6 +231,42 @@ main:focus {
   color: var(--accent-text);
 }
 
+.search-box__voice {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.search-box__voice:hover,
+.search-box__voice.is-listening {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.search-box__voice.is-listening {
+  animation: voice-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes voice-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--accent-soft);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px var(--accent-soft);
+  }
+}
+
 .suggest {
   position: absolute;
   top: calc(100% + 8px);

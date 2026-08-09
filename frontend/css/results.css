@@ -738,3 +738,133 @@
   line-height: 1.5;
   color: var(--text-tertiary);
 }
+
+.results__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.results__head .results__meta {
+  margin-bottom: 0;
+}
+
+.results__share {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.results__share:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 18px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.filter-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.filter-chip.is-active {
+  border-color: var(--brand);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.instant {
+  margin-bottom: 22px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-box);
+  background: var(--surface);
+}
+
+.instant__label {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 9px;
+  border: 1px solid var(--brand);
+  border-radius: var(--radius-pill);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.instant__result {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.result__title {
+  position: relative;
+}
+
+.result__save {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-inline-start: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.result__save:hover {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.result__save.is-saved {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.results__item.is-key-active .result,
+.results__item.is-key-active .map-card {
+  border-left: 3px solid var(--brand);
+  padding-inline-start: 10px;
+}
+
+.empty__retry {
+  margin-top: 18px;
+}
