@@ -1,9 +1,16 @@
 import { config } from './config.js';
+import { searchMaps as searchPhoton } from './photon.js';
 
 const API = 'https://nominatim.openstreetmap.org/search';
 const UA = 'LodestarSearch/1.0 (https://github.com/youssef-barkalah/lodestar)';
 
 export async function searchMaps(query, language) {
+  const nominatim = await searchNominatim(query, language);
+  if (nominatim.results.length) return nominatim;
+  return searchPhoton(query, language);
+}
+
+async function searchNominatim(query, language) {
   const lang = language && language !== 'any' ? language : 'en';
   const params = new URLSearchParams({
     q: query,
