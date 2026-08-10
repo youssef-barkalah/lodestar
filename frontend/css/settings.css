@@ -574,3 +574,29 @@
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
+
+.settings-save {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-box);
+  background: var(--surface-raised);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.08);
+}
+
+.settings-save.is-visible {
+  display: flex;
+}
+
+.settings-save__label {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}

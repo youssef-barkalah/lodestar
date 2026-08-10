@@ -117,6 +117,10 @@ const STRINGS = {
     'settings.safesearch.on.desc': 'Filter explicit content from results',
     'settings.language': 'Language',
     'settings.language.desc': 'Changes the language of the whole interface.',
+    'settings.unsaved': 'You have unsaved changes',
+    'settings.save': 'Save changes',
+    'settings.saved': 'Saved.',
+    'settings.saveFailed': 'Could not save. Please try again.',
     'settings.footer': 'Preferences are stored only on this device',
 
     'account.username': 'Username',
@@ -344,6 +348,10 @@ const STRINGS = {
     'settings.safesearch.on.desc': 'تصفية المحتوى الصريح من النتائج',
     'settings.language': 'اللغة',
     'settings.language.desc': 'يغيّر لغة الواجهة بأكملها.',
+    'settings.unsaved': 'لديك تغييرات غير محفوظة',
+    'settings.save': 'حفظ التغييرات',
+    'settings.saved': 'تم الحفظ.',
+    'settings.saveFailed': 'تعذّر الحفظ. يرجى المحاولة مرة أخرى.',
     'settings.footer': 'تُخزَّن التفضيلات على هذا الجهاز فقط',
 
     'account.username': 'اسم المستخدم',
@@ -578,6 +586,10 @@ const STRINGS = {
     'settings.language': 'Idioma',
     'settings.language.desc':
       'Cambia el idioma de toda la interfaz.',
+    'settings.unsaved': 'Tienes cambios sin guardar',
+    'settings.save': 'Guardar cambios',
+    'settings.saved': 'Guardado.',
+    'settings.saveFailed': 'No se pudo guardar. Inténtalo de nuevo.',
     'settings.footer':
       'Las preferencias se guardan solo en este dispositivo',
 
@@ -812,6 +824,10 @@ const STRINGS = {
     'settings.language': 'Teanga',
     'settings.language.desc':
       'Athraíonn sé teanga an chomhéadain ar fad.',
+    'settings.unsaved': 'Tá athruithe gan sábháil agat',
+    'settings.save': 'Sábháil na hathruithe',
+    'settings.saved': 'Sábháilte.',
+    'settings.saveFailed': 'Níorbh fhéidir sábháil. Bain triail as arís.',
     'settings.footer': 'Ní stóráiltear roghanna ach ar an ngléas seo',
 
     'account.username': 'Ainm úsáideora',
@@ -1042,6 +1058,10 @@ const STRINGS = {
     'settings.safesearch.on.desc': 'סנן תוכן מפורש מהתוצאות',
     'settings.language': 'שפה',
     'settings.language.desc': 'משנה את שפת הממשק כולו.',
+    'settings.unsaved': 'יש לך שינויים שלא נשמרו',
+    'settings.save': 'שמור שינויים',
+    'settings.saved': 'נשמר.',
+    'settings.saveFailed': 'לא ניתן היה לשמור. נסה שוב.',
     'settings.footer': 'ההעדפות נשמרות רק במכשיר זה',
 
     'account.username': 'שם משתמש',

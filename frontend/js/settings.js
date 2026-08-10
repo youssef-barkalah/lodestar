@@ -82,13 +82,60 @@ function pushSetting(payload) {
   pushSync(payload).catch(function () {});
 }
 
+let pendingSettings = null;
+
+function queueSetting(payload) {
+  if (!pendingSettings) pendingSettings = {};
+  Object.assign(pendingSettings, payload);
+  updateSaveBar();
+}
+
+function clearPendingSettings() {
+  pendingSettings = null;
+  updateSaveBar();
+}
+
+function updateSaveBar() {
+  const bar = document.getElementById('settings-save-bar');
+  if (!bar) return;
+  const dirty = !!pendingSettings;
+  bar.classList.toggle('is-visible', dirty);
+  if (!dirty) return;
+  const label = document.getElementById('settings-save-label');
+  if (label) label.textContent = t('settings.unsaved');
+}
+
+function saveSettings() {
+  if (!pendingSettings || !isLoggedIn()) return;
+  const payload = pendingSettings;
+  pendingSettings = null;
+  updateSaveBar();
+  pushSync(payload)
+    .then(function () {
+      const label = document.getElementById('settings-save-label');
+      if (label) label.textContent = t('settings.saved');
+    })
+    .catch(function () {
+      pendingSettings = Object.assign({}, pendingSettings || {}, payload);
+      updateSaveBar();
+      const label = document.getElementById('settings-save-label');
+      if (label) label.textContent = t('settings.saveFailed');
+    });
+}
+
+function initSaveBar() {
+  const button = document.getElementById('settings-save');
+  if (!button) return;
+  button.addEventListener('click', saveSettings);
+}
+
 function initTheme() {
   const radios = initRadioGroup('theme', getTheme());
   radios.forEach(function (radio) {
     radio.addEventListener('change', function () {
       if (radio.checked) {
-        setTheme(radio.value);
-        pushSetting({ theme: radio.value });
+    setTheme(radio.value);
+    queueSetting({ theme: radio.value });
       }
     });
   });
@@ -102,8 +149,8 @@ function initHistory() {
   radios.forEach(function (radio) {
     radio.addEventListener('change', function () {
       if (radio.checked) {
-        save(HISTORY_KEY, radio.value);
-        pushSetting({ historySetting: radio.value });
+    save(HISTORY_KEY, radio.value);
+    queueSetting({ historySetting: radio.value });
       }
     });
   });
@@ -114,8 +161,8 @@ function initSuggestionsSetting() {
   radios.forEach(function (radio) {
     radio.addEventListener('change', function () {
       if (radio.checked) {
-        save(SUGGESTIONS_KEY, radio.value);
-        pushSetting({ suggestions: radio.value });
+    save(SUGGESTIONS_KEY, radio.value);
+    queueSetting({ suggestions: radio.value });
       }
     });
   });
@@ -200,6 +247,7 @@ function syncDown() {
         renderAccount();
       }
     }
+    clearPendingSettings();
   });
 }
 
@@ -223,6 +271,7 @@ function syncNow() {
       return pushSync(fullSyncPayload());
     })
     .then(function () {
+      clearPendingSettings();
       accountMessage(t('account.synced'));
     })
     .catch(function (err) {
@@ -1064,6 +1113,7 @@ initHistory();
 initSuggestionsSetting();
 initSafeSearch();
 initLanguage();
+initSaveBar();
 renderAccount();
 initBack();
 syncDown();
