@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'lodestar-v1';
+﻿const CACHE_NAME = 'lodestar-v2';
 const PRECACHE = [
   './',
   'index.html',
