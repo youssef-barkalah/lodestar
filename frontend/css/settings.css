@@ -183,6 +183,34 @@
   margin-top: 4px;
 }
 
+.account__remember {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.account__remember input {
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+  accent-color: var(--brand);
+}
+
+.account__remember span {
+  line-height: 1.4;
+}
+
+.account__remember small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
 .account__message {
   margin-top: 10px;
   font-size: 13px;

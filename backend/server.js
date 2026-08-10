@@ -7,7 +7,7 @@ import { normalizeResults } from './lib/normalize.js';
 import { rankResults } from './lib/rank.js';
 import { findOfficialSite, toApiSite } from './lib/websites.js';
 import { getSuggestions } from './lib/suggest.js';
-import { getIcon, clearIconCache } from './lib/icon.js';
+import { getIcon } from './lib/icon.js';
 import { lookupCountry } from './lib/country.js';
 import { searchMaps } from './lib/nominatim.js';
 import { instantAnswer } from './lib/instant.js';
@@ -103,7 +103,7 @@ function sanitizeSync(body) {
   }
   if (body.language !== undefined) {
     const lang = String(body.language);
-    if (lang === 'any' || /^[a-z]{2}$/.test(lang)) sync.language = lang;
+    if (/^[a-z]{2}$/.test(lang)) sync.language = lang;
   }
   if (body.history !== undefined) {
     sync.history = sanitizeHistory(body.history);
@@ -280,8 +280,9 @@ async function handleRegister(req, res) {
   try {
     const body = await readBody(req);
     const username = String(body.username || '').trim();
+    const email = String(body.email || '').trim();
     const password = String(body.password || '');
-    const loggedIn = await auth.register(username, password);
+    const loggedIn = await auth.register(username, email, password);
     sendJson(res, 200, {
       username: loggedIn.username,
       displayName: loggedIn.displayName,
@@ -300,9 +301,9 @@ async function handleLogin(req, res) {
   if (!rate.allowed) return sendRateLimited(res, rate);
   try {
     const body = await readBody(req);
-    const username = String(body.username || '').trim();
+    const identifier = String(body.identifier || '').trim();
     const password = String(body.password || '');
-    const loggedIn = await auth.login(username, password);
+    const loggedIn = await auth.login(identifier, password);
     sendJson(res, 200, {
       username: loggedIn.username,
       displayName: loggedIn.displayName,
@@ -311,6 +312,39 @@ async function handleLogin(req, res) {
     });
   } catch (err) {
     authError(res, err.message);
+  }
+}
+
+async function handleForgot(req, res) {
+  const rate = rateLimit.limit(req);
+  if (!rate.allowed) return sendRateLimited(res, rate);
+  try {
+    const body = await readBody(req);
+    const username = String(body.username || '').trim();
+    const email = String(body.email || '').trim();
+    const result = await auth.requestReset(username, email);
+    sendJson(res, 200, result);
+  } catch (err) {
+    sendJson(res, 400, {
+      error: { code: 'reset_request_failed', message: err.message },
+    });
+  }
+}
+
+async function handleReset(req, res) {
+  const rate = rateLimit.limit(req);
+  if (!rate.allowed) return sendRateLimited(res, rate);
+  try {
+    const body = await readBody(req);
+    const username = String(body.username || '').trim();
+    const code = String(body.code || '').trim();
+    const password = String(body.password || '');
+    await auth.resetPassword(username, code, password);
+    sendJson(res, 200, { ok: true });
+  } catch (err) {
+    sendJson(res, 400, {
+      error: { code: 'reset_failed', message: err.message },
+    });
   }
 }
 
@@ -351,11 +385,6 @@ async function handleSyncPost(req, res) {
     });
     return;
   }
-  sendJson(res, 200, { ok: true });
-}
-
-function handleCacheClear(req, res) {
-  clearIconCache();
   sendJson(res, 200, { ok: true });
 }
 
@@ -557,6 +586,14 @@ const server = createServer((req, res) => {
     handleLogin(req, res);
     return;
   }
+  if (req.method === 'POST' && pathname === '/api/auth/forgot') {
+    handleForgot(req, res);
+    return;
+  }
+  if (req.method === 'POST' && pathname === '/api/auth/reset') {
+    handleReset(req, res);
+    return;
+  }
   if (req.method === 'POST' && pathname === '/api/auth/logout') {
     handleLogout(req, res);
     return;
@@ -583,10 +620,6 @@ const server = createServer((req, res) => {
         },
       });
     });
-    return;
-  }
-  if (req.method === 'POST' && pathname === '/api/cache/clear') {
-    handleCacheClear(req, res);
     return;
   }
   if (req.method === 'GET' && pathname === '/api/account') {
