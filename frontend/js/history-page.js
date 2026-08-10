@@ -1,17 +1,18 @@
 import { all, clear, setting } from './history.js';
 import { directionOf } from './direction.js';
 import { syncDown } from './sync.js';
+import { t } from './i18n.js';
 
 const TYPE_LABELS = {
-  web: 'Web',
-  images: 'Images',
-  news: 'News',
-  videos: 'Videos',
-  maps: 'Maps',
+  web: 'tab.web',
+  images: 'tab.images',
+  news: 'tab.news',
+  videos: 'tab.videos',
+  maps: 'tab.maps',
 };
 
 function typeLabel(type) {
-  return TYPE_LABELS[type] || 'Web';
+  return t(TYPE_LABELS[type] || 'tab.web');
 }
 
 function formatDate(timestamp) {
@@ -60,8 +61,8 @@ function render() {
       if (emptyTitle) {
         emptyTitle.textContent =
           setting() === 'off'
-            ? 'Search history is turned off.'
-            : 'No search history yet.';
+            ? t('history.empty.off')
+            : t('history.empty.none');
       }
     }
     if (clearButton) clearButton.hidden = true;
@@ -71,8 +72,7 @@ function render() {
   if (empty) empty.hidden = true;
   if (clearButton) clearButton.hidden = false;
   if (count) {
-    count.textContent =
-      items.length + (items.length === 1 ? ' search' : ' searches');
+    count.textContent = t('history.count', { n: items.length });
   }
 
   items.forEach(function (item) {
@@ -108,12 +108,7 @@ function render() {
 if (clearButton) {
   clearButton.addEventListener('click', function () {
     clear();
-render();
-
-syncDown().then(render);
-document.addEventListener('visibilitychange', function () {
-  if (!document.hidden) syncDown().then(render);
-});
+    render();
   });
 }
 
@@ -127,5 +122,10 @@ if (backButton) {
     }
   });
 }
+
+syncDown().then(render);
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) syncDown().then(render);
+});
 
 render();

@@ -4,7 +4,7 @@ import { initSuggestions } from './suggestions.js';
 import { initVoice } from './voice.js';
 import { applyBang } from './bangs.js';
 import { directionOf } from './direction.js';
-import { getLanguage, languageInfo, flagUrl } from './languages.js';
+import { t } from './i18n.js';
 import { isSaved, toggle as toggleSaved } from './bookmarks.js';
 
 const VALID_TYPES = ['web', 'images', 'news', 'videos', 'maps'];
@@ -22,7 +22,6 @@ const time = VALID_TIMES.includes(params.get('time'))
 const rawSafeSearch = params.get('safesearch');
 const safeSearch =
   rawSafeSearch !== null ? rawSafeSearch === '1' : storedSafeSearch();
-const lang = getLanguage();
 
 const root = document.getElementById('results-root');
 const heading = document.getElementById('results-heading');
@@ -115,7 +114,6 @@ function searchUrl(overrides) {
   const next = {
     q: query,
     type: type,
-    lang: lang,
     time: time,
     safesearch: safeSearch ? '1' : '0',
   };
@@ -141,7 +139,7 @@ function searchUrl(overrides) {
 function initControls() {
   if (input) {
     input.value = query;
-    input.setAttribute('lang', lang === 'any' ? 'en' : lang);
+    input.setAttribute('lang', document.documentElement.lang || 'en');
     initSuggestions(input);
     initVoice(input);
     const form = input.form;
@@ -246,10 +244,13 @@ function officialMarkup(official) {
     : '';
 
   return (
-    '<section class="official" aria-label="Official website">' +
+    '<section class="official" aria-label="' +
+    t('official.title') +
+    '">' +
     '<span class="official__badge">' +
     '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><path d="M12 2 14.9 7.9 21.4 8.8 16.6 13.4 17.7 19.9 12 16.8 6.3 19.9 7.4 13.4 2.6 8.8 9.1 7.9Z"/></svg>' +
-    'Official website</span>' +
+    escapeHtml(t('official.title')) +
+    '</span>' +
     '<h2 class="official__title"><a href="' +
     escapeHtml(official.url) +
     '" target="_blank" rel="noopener">' +
@@ -284,9 +285,9 @@ function saveMarkup(url, title) {
     '" data-title="' +
     escapeHtml(title) +
     '" aria-label="' +
-    (saved ? 'Remove from saved' : 'Save result') +
+    t(saved ? 'result.unsave' : 'result.save') +
     '" title="' +
-    (saved ? 'Remove from saved' : 'Save result') +
+    t(saved ? 'result.unsave' : 'result.save') +
     '">' +
     '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"></path>' +
@@ -306,12 +307,15 @@ function wireSaveButtons() {
       button.classList.toggle('is-saved', saved);
       button.setAttribute(
         'aria-label',
-        saved ? 'Remove from saved' : 'Save result'
+        t(saved ? 'result.unsave' : 'result.save')
       );
-      button.setAttribute('title', saved ? 'Remove from saved' : 'Save result');
+      button.setAttribute(
+        'title',
+        t(saved ? 'result.unsave' : 'result.save')
+      );
       const live = document.getElementById('results-live');
       if (live) {
-        live.textContent = saved ? 'Saved.' : 'Removed from saved.';
+        live.textContent = t(saved ? 'result.saved' : 'result.removed');
       }
     });
   });
@@ -405,7 +409,9 @@ function imageItem(result, index) {
   });
   const relatedRow = related.length
     ? '<span class="related">' +
-      '<span class="related__label">Related</span>' +
+      '<span class="related__label">' +
+      escapeHtml(t('related.label')) +
+      '</span>' +
       '<span class="related__row">' +
       related
         .map(function (item, i) {
@@ -572,10 +578,14 @@ function mapsEmbed(results) {
 
   return (
     '<div class="maps">' +
-    '<iframe class="maps__map" loading="lazy" title="Map" src="' +
+    '<iframe class="maps__map" loading="lazy" title="' +
+    t('map.title') +
+    '" src="' +
     escapeHtml(src) +
     '" referrerpolicy="no-referrer"></iframe>' +
-    '<a class="maps__open" href="https://www.openstreetmap.org/" target="_blank" rel="noopener">Open in OpenStreetMap</a>' +
+    '<a class="maps__open" href="https://www.openstreetmap.org/" target="_blank" rel="noopener">' +
+    escapeHtml(t('map.openOsm')) +
+    '</a>' +
     '</div>'
   );
 }
@@ -609,32 +619,19 @@ function mapItem(result, index) {
   );
 }
 
-function langChip() {
-  const info = languageInfo(lang);
-  const flag = info.flag
-    ? '<img class="results__lang-flag" src="' +
-      escapeHtml(flagUrl(info.flag)) +
-      '" alt="" width="20" height="15" loading="lazy" referrerpolicy="no-referrer">'
-    : '';
-  return (
-    '<a class="results__lang" href="settings.html" title="Search language: ' +
-    escapeHtml(info.name) +
-    '">' +
-    flag +
-    '<span>' +
-    escapeHtml(info.name) +
-    '</span></a>'
-  );
-}
-
 function filterChips() {
   const chips = [];
-  const labels = { day: 'Past 24h', week: 'Past week', month: 'Past month', year: 'Past year' };
+  const labels = {
+    day: t('filter.day'),
+    week: t('filter.week'),
+    month: t('filter.month'),
+    year: t('filter.year'),
+  };
   const showTime = type === 'web' || type === 'news';
   if (showTime) {
     const timeValues = ['any'].concat(VALID_TIMES);
     timeValues.forEach(function (value) {
-      const label = value === 'any' ? 'Any time' : labels[value];
+      const label = value === 'any' ? t('filter.any') : labels[value];
       const className =
         'filter-chip' + (time === value ? ' is-active' : '');
       chips.push(
@@ -650,18 +647,20 @@ function filterChips() {
       );
     });
   }
-  const safeLabel = safeSearch ? 'Safe search: on' : 'Safe search: off';
+  const safeLabel = safeSearch ? t('filter.safeOn') : t('filter.safeOff');
   const targetSafe = safeSearch ? '0' : '1';
   chips.push(
     '<a class="filter-chip" data-safechip href="' +
       searchUrl({ safesearch: targetSafe, page: null }) +
       '" role="button" aria-pressed="' +
       (safeSearch ? 'true' : 'false') +
-      '" title="Toggle safe search">' +
+      '" title="' +
+      t('filter.safeToggle') +
+      '">' +
       safeLabel +
       '</a>'
   );
-  return '<div class="filter-bar" role="group" aria-label="Result filters">' + chips.join('') + '</div>';
+  return '<div class="filter-bar" role="group" aria-label="' + t('filter.results') + '">' + chips.join('') + '</div>';
 }
 
 function wireSafeChip() {
@@ -676,8 +675,12 @@ function instantMarkup(instant) {
   if (!instant) return '';
   const prefix =
     instant.kind === 'math'
-      ? '<span class="instant__label">Calculator</span>'
-      : '<span class="instant__label">Conversion</span>';
+      ? '<span class="instant__label">' +
+        escapeHtml(t('instant.calculator')) +
+        '</span>'
+      : '<span class="instant__label">' +
+        escapeHtml(t('instant.conversion')) +
+        '</span>';
   return (
     '<section class="instant" aria-label="Instant answer">' +
     prefix +
@@ -699,7 +702,9 @@ function shareMarkup() {
     '<line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>' +
     '<line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>' +
     '</svg>' +
-    '<span>Share</span>' +
+    '<span>' +
+    escapeHtml(t('share.label')) +
+    '</span>' +
     '</button>'
   );
 }
@@ -738,8 +743,8 @@ function countryMarkup(country) {
     (country.flagUrl
       ? '<img class="country__flag" src="' +
         escapeHtml(country.flagUrl) +
-        '" alt="Flag of ' +
-        escapeHtml(country.name) +
+        '" alt="' +
+        escapeHtml(t('country.flag', { name: country.name })) +
         '" width="80" height="56" loading="lazy" referrerpolicy="no-referrer">'
       : '') +
     '<div class="country__info">' +
@@ -748,25 +753,29 @@ function countryMarkup(country) {
     '>' +
     escapeHtml(country.name) +
     '</h2>' +
-    '<p class="country__capital">Capital: ' +
-    escapeHtml(country.capital) +
+    '<p class="country__capital">' +
+    escapeHtml(t('country.capital', { name: country.capital })) +
     '</p>' +
     '</div>' +
     '</div>' +
     '<div class="country__slideshow" data-slideshow hidden>' +
     '<div class="country__slides" data-slides></div>' +
     '<div class="country__slideshow-bar">' +
-    '<button class="country__nav" type="button" data-prev aria-label="Previous image">' +
+    '<button class="country__nav" type="button" data-prev aria-label="' +
+    t('country.prev') +
+    '">' +
     ARROW_LEFT +
     '</button>' +
     '<span class="country__slide-count" data-count></span>' +
-    '<button class="country__nav" type="button" data-next aria-label="Next image">' +
+    '<button class="country__nav" type="button" data-next aria-label="' +
+    t('country.next') +
+    '">' +
     ARROW_RIGHT +
     '</button>' +
     '</div>' +
     '</div>' +
-    '<iframe class="country__map" loading="lazy" title="Map of ' +
-    escapeHtml(country.name) +
+    '<iframe class="country__map" loading="lazy" title="' +
+    escapeHtml(t('country.map', { name: country.name })) +
     '" src="' +
     escapeHtml(countryMapUrl(country)) +
     '" referrerpolicy="no-referrer"></iframe>' +
@@ -865,38 +874,47 @@ function paginationMarkup(data) {
     data.page > 1
       ? '<div class="pagination__side"><a class="btn" href="' +
         searchUrl({ page: data.page - 1 }) +
-        '">Previous</a></div>'
+        '">' +
+        t('pagination.previous') +
+        '</a></div>'
       : '<div class="pagination__side"></div>';
   const next =
     '<div class="pagination__side"><a class="btn" href="' +
     searchUrl({ page: data.page + 1 }) +
-    '">Next</a></div>';
+    '">' +
+    t('pagination.next') +
+    '</a></div>';
   return (
-    '<nav class="pagination" aria-label="Results pages">' + prev + next + '</nav>'
+    '<nav class="pagination" aria-label="' +
+    t('pagination.label') +
+    '">' +
+    prev +
+    next +
+    '</nav>'
   );
 }
 
 function showLoading() {
-  if (heading) heading.textContent = 'Searching for ' + query;
-  setLive('Searching\u2026');
+  if (heading) heading.textContent = t('results.searching', { q: query });
+  setLive(t('loading.text'));
   root.innerHTML =
     '<div class="loading" role="status">' +
     '<span class="loading__dots" aria-hidden="true"><i></i><i></i><i></i></span>' +
-    '<span>Searching&hellip;</span>' +
+    '<span>' +
+    escapeHtml(t('loading.text')) +
+    '</span>' +
     '</div>';
 }
 
 function renderResults(data) {
   document.title = data.query + ' \u2014 Lodestar';
-  if (heading) heading.textContent = 'Search results for ' + data.query;
-  setLive(data.results.length + ' results for ' + data.query);
+  if (heading) heading.textContent = t('results.heading', { q: data.query });
+  setLive(t('results.live', { count: data.results.length, q: data.query }));
 
   let html =
     '<div class="results__head">' +
     '<p class="results__meta">' +
-    data.results.length +
-    ' results' +
-    langChip() +
+    escapeHtml(t('results.meta', { count: data.results.length })) +
     '</p>' +
     shareMarkup() +
     '</div>';
@@ -946,22 +964,30 @@ function renderResults(data) {
 }
 
 function showNoResults() {
-  setLive('No results found.');
+  setLive(t('results.noResults'));
   root.innerHTML =
     '<div class="empty">' +
-    '<h2 class="empty__title">No results found.</h2>' +
-    '<p class="empty__text">Try another search.</p>' +
+    '<h2 class="empty__title">' +
+    escapeHtml(t('results.noResults')) +
+    '</h2>' +
+    '<p class="empty__text">' +
+    escapeHtml(t('results.tryAnother')) +
+    '</p>' +
     '</div>';
 }
 
 function showNoQuery() {
-  document.title = 'Search \u2014 Lodestar';
-  if (heading) heading.textContent = 'Search Lodestar';
+  document.title = t('title.search');
+  if (heading) heading.textContent = t('home.tagline');
   setLive('');
   root.innerHTML =
     '<div class="empty">' +
-    '<h2 class="empty__title">Enter something to search.</h2>' +
-    '<p class="empty__text">Search the web privately with Lodestar.</p>' +
+    '<h2 class="empty__title">' +
+    escapeHtml(t('results.noQuery')) +
+    '</h2>' +
+    '<p class="empty__text">' +
+    escapeHtml(t('results.noQueryDesc')) +
+    '</p>' +
     '</div>';
 }
 
@@ -972,8 +998,12 @@ function showError(message) {
     '<h2 class="empty__title">' +
     escapeHtml(message) +
     '</h2>' +
-    '<p class="empty__text">Please check your connection and try again.</p>' +
-    '<button type="button" class="btn empty__retry" id="retry-search">Try again</button>' +
+    '<p class="empty__text">' +
+    escapeHtml(t('error.connection')) +
+    '</p>' +
+    '<button type="button" class="btn empty__retry" id="retry-search">' +
+    escapeHtml(t('error.retry')) +
+    '</button>' +
     '</div>';
   const retry = document.getElementById('retry-search');
   if (retry) retry.addEventListener('click', runSearch);
@@ -984,7 +1014,10 @@ async function runSearch() {
   try {
     const wantCountry = type === 'web' && page === 1;
     const [data, country] = await Promise.all([
-      fetchResults(query, type, page, lang, { time: time, safeSearch: safeSearch }),
+      fetchResults(query, type, page, {
+        time: time,
+        safeSearch: safeSearch,
+      }),
       wantCountry ? fetchCountry(query) : Promise.resolve(null),
     ]);
     countryCard = country;

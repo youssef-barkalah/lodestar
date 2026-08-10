@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 function supported() {
   return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
 }
@@ -12,8 +14,8 @@ export function initVoice(input) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'search-box__voice';
-  button.setAttribute('aria-label', 'Search by voice');
-  button.setAttribute('title', 'Search by voice');
+  button.setAttribute('aria-label', t('voice.search'));
+  button.setAttribute('title', t('voice.search'));
   button.innerHTML =
     '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>' +
@@ -34,7 +36,7 @@ export function initVoice(input) {
     } catch (err) {}
     recognition = null;
     button.classList.remove('is-listening');
-    button.setAttribute('aria-label', 'Search by voice');
+    button.setAttribute('aria-label', t('voice.search'));
   }
 
   function submit() {
@@ -61,10 +63,10 @@ export function initVoice(input) {
     };
     recognition.onend = function () {
       button.classList.remove('is-listening');
-      button.setAttribute('aria-label', 'Search by voice');
+      button.setAttribute('aria-label', t('voice.search'));
     };
     button.classList.add('is-listening');
-    button.setAttribute('aria-label', 'Listening…');
+    button.setAttribute('aria-label', t('voice.listening'));
     try {
       recognition.start();
     } catch (err) {

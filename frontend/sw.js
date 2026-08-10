@@ -14,6 +14,7 @@ const PRECACHE = [
   'css/settings.css',
   'js/head-theme.js',
   'js/head-lang.js',
+  'js/i18n.js',
   'js/api.js',
   'js/account.js',
   'js/account-ui.js',
@@ -35,6 +36,8 @@ const PRECACHE = [
   '../assets/icon.svg',
   '../assets/purple-logo.svg',
   '../assets/white-logo.svg',
+  '../assets/logo-arabic.svg',
+  '../assets/logo-hebrew.svg',
   '../assets/icon-192.png',
   '../assets/icon-512.png',
 ];

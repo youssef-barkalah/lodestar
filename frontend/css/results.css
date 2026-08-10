@@ -669,35 +669,6 @@
   }
 }
 
-.results__lang {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-inline-start: 10px;
-  padding-block: 3px;
-  padding-inline: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  text-decoration: none;
-  vertical-align: middle;
-}
-
-.results__lang:hover {
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
-.results__lang-flag {
-  display: block;
-  width: 20px;
-  height: 15px;
-  border-radius: 3px;
-}
-
 .maps {
   margin-bottom: 26px;
 }

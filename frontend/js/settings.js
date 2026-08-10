@@ -13,6 +13,8 @@ import {
   refreshSession,
   register,
   removeAvatar,
+  requestReset,
+  resetPassword,
   revokeAllSessions,
   revokeSession,
   updateAccount,
@@ -28,12 +30,8 @@ import {
   mergeRemote as mergeRemoteBookmarks,
 } from './bookmarks.js';
 import { initialsAvatar, avatarColor } from './account-ui.js';
-import {
-  LANGUAGES,
-  getLanguage,
-  setLanguage,
-  flagUrl,
-} from './languages.js';
+import { LANGUAGES, getLanguage, setLanguage } from './languages.js';
+import { t, applyLanguage } from './i18n.js';
 
 const HISTORY_KEY = 'lodestar.searchHistory';
 const DEFAULT_HISTORY = '24h';
@@ -44,13 +42,6 @@ const SAFE_SEARCH_KEY = 'lodestar.safeSearch';
 const VALID_HISTORY = ['off', '24h', 'always'];
 const VALID_THEMES = ['light', 'dark', 'system'];
 const VALID_SUGGESTIONS = ['on', 'off'];
-
-const GLOBE_ICON =
-  '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-  '<circle cx="12" cy="12" r="9"></circle>' +
-  '<path d="M3 12h18"></path>' +
-  '<path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18Z"></path>' +
-  '</svg>';
 
 function save(key, value) {
   try {
@@ -147,55 +138,28 @@ function initSafeSearch() {
 }
 
 function initLanguage() {
-  const grid = document.getElementById('lang-grid');
-  if (!grid) return;
+  const select = document.getElementById('lang-select');
+  if (!select) return;
 
   const current = getLanguage();
-  const options = [{ code: 'any', name: 'All languages', flag: '' }].concat(
-    LANGUAGES
-  );
+  select.innerHTML = LANGUAGES.map(function (language) {
+    return (
+      '<option value="' +
+      escapeHtml(language.code) +
+      '"' +
+      (language.code === current ? ' selected' : '') +
+      '>' +
+      escapeHtml(language.name) +
+      '</option>'
+    );
+  }).join('');
 
-  grid.innerHTML = options
-    .map(function (option) {
-      const icon = option.flag
-        ? '<img class="lang-option__flag" src="' +
-          escapeHtml(flagUrl(option.flag)) +
-          '" alt="" width="40" height="30" loading="lazy" referrerpolicy="no-referrer">'
-        : GLOBE_ICON;
-      return (
-        '<label class="lang-option' +
-        (option.code === current ? ' is-active' : '') +
-        '">' +
-        '<input type="radio" name="language" value="' +
-        escapeHtml(option.code) +
-        '"' +
-        (option.code === current ? ' checked' : '') +
-        '>' +
-        '<span class="lang-option__icon" aria-hidden="true">' +
-        icon +
-        '</span>' +
-        '<span class="lang-option__name">' +
-        escapeHtml(option.name) +
-        '</span>' +
-        '</label>'
-      );
-    })
-    .join('');
-
-  grid
-    .querySelectorAll('input[name="language"]')
-    .forEach(function (radio) {
-      radio.addEventListener('change', function () {
-        if (radio.checked) {
-          setLanguage(radio.value);
-          pushSetting({ language: radio.value });
-          grid.querySelectorAll('.lang-option').forEach(function (label) {
-            const input = label.querySelector('input');
-            label.classList.toggle('is-active', input.value === radio.value);
-          });
-        }
-      });
-    });
+  select.addEventListener('change', function () {
+    setLanguage(select.value);
+    applyLanguage();
+    pushSetting({ language: select.value });
+    renderAccount();
+  });
 }
 
 function accountMessage(message, isError) {
@@ -226,13 +190,14 @@ function syncDown() {
     if (remote.language !== undefined) {
       const value = remote.language;
       if (
-        value === 'any' ||
         LANGUAGES.some(function (language) {
           return language.code === value;
         })
       ) {
         setLanguage(value);
+        applyLanguage();
         initLanguage();
+        renderAccount();
       }
     }
   });
@@ -258,31 +223,65 @@ function syncNow() {
       return pushSync(fullSyncPayload());
     })
     .then(function () {
-      accountMessage('Synced.');
+      accountMessage(t('account.synced'));
     })
     .catch(function (err) {
-      accountMessage(err.message || 'Something went wrong.', true);
+      accountMessage(err.message || t('error.generic'), true);
     })
     .then(function () {
       if (button) button.disabled = false;
     });
 }
 
-function signIn(createAccount, usernameEl, passwordEl) {
-  const username = (usernameEl.value || '').trim();
-  const password = passwordEl.value || '';
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function signIn(createAccount, fields) {
+  const identifier = fields.username.value.trim();
+  const email = (fields.email ? fields.email.value || '' : '').trim();
+  const username = identifier;
+  const password = fields.password.value || '';
+  const confirm = fields.confirm ? fields.confirm.value || '' : '';
+  const remember = fields.remember ? fields.remember.checked : true;
   accountMessage('', false);
+
   if (!username) {
-    accountMessage('Enter a username.', true);
-    usernameEl.focus();
+    accountMessage(t('account.enterUsername'), true);
+    fields.username.focus();
     return;
+  }
+  if (createAccount && !/^[A-Za-z0-9._-]{3,20}$/.test(username)) {
+    accountMessage(t('account.usernameRules'), true);
+    fields.username.focus();
+    return;
+  }
+  if (createAccount) {
+    if (!email) {
+      accountMessage(t('account.enterEmail'), true);
+      fields.email.focus();
+      return;
+    }
+    if (!isValidEmail(email)) {
+      accountMessage(t('account.emailInvalid'), true);
+      fields.email.focus();
+      return;
+    }
   }
   if (password.length < 6) {
-    accountMessage('Password must be at least 6 characters.', true);
-    passwordEl.focus();
+    accountMessage(t('account.passwordTooShort'), true);
+    fields.password.focus();
     return;
   }
-  const action = createAccount ? register(username, password) : login(username, password);
+  if (createAccount && password !== confirm) {
+    accountMessage(t('account.passwordsMismatch'), true);
+    if (fields.confirm) fields.confirm.focus();
+    return;
+  }
+
+  const action = createAccount
+    ? register(username, email, password)
+    : login(identifier, password, remember);
   action
     .then(function () {
       return syncDown();
@@ -291,7 +290,7 @@ function signIn(createAccount, usernameEl, passwordEl) {
       renderAccount();
     })
     .catch(function (err) {
-      accountMessage(err.message || 'Something went wrong.', true);
+      accountMessage(err.message || t('error.generic'), true);
     });
 }
 
@@ -309,12 +308,12 @@ function relativeTime(iso) {
   if (Number.isNaN(then)) return '';
   const diff = Date.now() - then;
   const minutes = Math.round(diff / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return minutes + 'm ago';
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return minutes + 'm';
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return hours + 'h ago';
+  if (hours < 24) return hours + 'h';
   const days = Math.round(hours / 24);
-  if (days < 30) return days + 'd ago';
+  if (days < 30) return days + 'd';
   return new Date(then).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -325,14 +324,13 @@ function memberSince(iso) {
   if (!iso) return '';
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
-  return (
-    'Member since ' +
-    date.toLocaleDateString(undefined, {
+  return t('account.memberSince', {
+    date: date.toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-    })
-  );
+    }),
+  });
 }
 
 function avatarMarkup(session) {
@@ -356,11 +354,17 @@ function avatarMarkup(session) {
 function profileMarkup(session) {
   const name = session.displayName || session.username;
   const removePhoto = session.avatar
-    ? '<button class="account__link-btn" id="account-avatar-remove" type="button">Remove photo</button>'
+    ? '<button class="account__link-btn" id="account-avatar-remove" type="button">' +
+      escapeHtml(t('account.removePhoto')) +
+      '</button>'
     : '';
   return (
     '<div class="account__profile">' +
-    '<button class="account__avatar" id="account-avatar" type="button" aria-label="Change profile photo" title="Change profile photo">' +
+    '<button class="account__avatar" id="account-avatar" type="button" aria-label="' +
+    t('account.changePhoto') +
+    '" title="' +
+    t('account.changePhoto') +
+    '">' +
     avatarMarkup(session) +
     '</button>' +
     '<div class="account__profile-text">' +
@@ -376,25 +380,43 @@ function profileMarkup(session) {
     '</div>' +
     '</div>' +
     '<div class="account__actions">' +
-    '<button class="btn" type="button" id="account-edit-profile">Edit profile</button>' +
-    '<button class="btn" type="button" id="account-password">Change password</button>' +
-    '<button class="btn" type="button" id="account-sync">Sync now</button>' +
-    '<button class="btn" type="button" id="account-logout">Sign out</button>' +
+    '<button class="btn" type="button" id="account-edit-profile">' +
+    escapeHtml(t('account.editProfile')) +
+    '</button>' +
+    '<button class="btn" type="button" id="account-password">' +
+    escapeHtml(t('account.changePassword')) +
+    '</button>' +
+    '<button class="btn" type="button" id="account-sync">' +
+    escapeHtml(t('account.syncNow')) +
+    '</button>' +
+    '<button class="btn" type="button" id="account-logout">' +
+    escapeHtml(t('account.logout')) +
+    '</button>' +
     '</div>' +
     '<div id="account-subpanel"></div>' +
     '<div id="account-devices"></div>' +
     '<div class="account__danger">' +
-    '<h3>Delete account</h3>' +
-    '<p>This permanently removes your account and all synced data from Lodestar.</p>' +
-    '<button class="btn btn--danger" type="button" id="account-delete">Delete account</button>' +
+    '<h3>' +
+    escapeHtml(t('account.delete')) +
+    '</h3>' +
+    '<p>' +
+    escapeHtml(t('account.delete.desc')) +
+    '</p>' +
+    '<button class="btn btn--danger" type="button" id="account-delete">' +
+    escapeHtml(t('account.delete')) +
+    '</button>' +
     '<div class="account__card" id="delete-confirm" hidden>' +
-    '<p>Type <strong>' +
-    escapeHtml(session.username) +
-    '</strong> to confirm.</p>' +
+    '<p>' +
+    escapeHtml(t('account.delete.confirm', { username: session.username })) +
+    '</p>' +
     '<input class="account__input" id="delete-username" type="text" autocomplete="off">' +
     '<div class="account__actions">' +
-    '<button class="btn btn--danger" type="button" id="delete-confirm-btn" disabled>Delete permanently</button>' +
-    '<button class="btn" type="button" id="delete-cancel">Cancel</button>' +
+    '<button class="btn btn--danger" type="button" id="delete-confirm-btn" disabled>' +
+    escapeHtml(t('account.delete.permanent')) +
+    '</button>' +
+    '<button class="btn" type="button" id="delete-cancel">' +
+    escapeHtml(t('account.cancel')) +
+    '</button>' +
     '</div>' +
     '</div>' +
     '</div>' +
@@ -410,7 +432,7 @@ function confirmDelete() {
       renderAccount();
     })
     .catch(function (err) {
-      accountMessage(err.message || 'Could not delete your account.', true);
+      accountMessage(err.message || t('error.generic'), true);
     });
 }
 
@@ -432,10 +454,10 @@ function wireProfile() {
       removeAvatar()
         .then(function () {
           renderAccount();
-          accountMessage('Profile photo removed.');
+          accountMessage(t('account.photoRemoved'));
         })
         .catch(function (err) {
-          accountMessage(err.message || 'Could not remove your photo.', true);
+          accountMessage(err.message || t('error.generic'), true);
         });
     });
   }
@@ -479,7 +501,7 @@ function wireProfile() {
 function handleAvatarFile(file) {
   if (!file) return;
   if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
-    accountMessage('Choose a PNG or JPEG photo.', true);
+    accountMessage(t('account.photoType'), true);
     return;
   }
   const reader = new FileReader();
@@ -499,14 +521,14 @@ function handleAvatarFile(file) {
       uploadAvatar(dataUrl)
         .then(function () {
           renderAccount();
-          accountMessage('Profile photo updated.');
+          accountMessage(t('account.photoUpdated'));
         })
         .catch(function (err) {
-          accountMessage(err.message || 'Could not save your photo.', true);
+          accountMessage(err.message || t('error.generic'), true);
         });
     };
     image.onerror = function () {
-      accountMessage('Could not read that image.', true);
+      accountMessage(t('account.photoRead'), true);
     };
     image.src = reader.result;
   };
@@ -519,18 +541,28 @@ function openEditProfile() {
   if (!box) return;
   box.innerHTML =
     '<div class="account__card">' +
-    '<h3>Edit profile</h3>' +
-    '<label class="account__field"><span>Display name</span>' +
+    '<h3>' +
+    escapeHtml(t('account.editProfile')) +
+    '</h3>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.displayName')) +
+    '</span>' +
     '<input class="account__input" id="profile-name" type="text" maxlength="40" value="' +
     escapeHtml(session.displayName || '') +
     '"></label>' +
-    '<label class="account__field"><span>Bio</span>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.bio')) +
+    '</span>' +
     '<textarea class="account__input account__textarea" id="profile-bio-input" rows="3" maxlength="300">' +
     escapeHtml(currentBio || '') +
     '</textarea></label>' +
     '<div class="account__actions">' +
-    '<button class="btn btn--primary" type="button" id="profile-save">Save</button>' +
-    '<button class="btn" type="button" id="profile-cancel">Cancel</button>' +
+    '<button class="btn btn--primary" type="button" id="profile-save">' +
+    escapeHtml(t('account.save')) +
+    '</button>' +
+    '<button class="btn" type="button" id="profile-cancel">' +
+    escapeHtml(t('account.cancel')) +
+    '</button>' +
     '</div>' +
     '</div>';
   const nameEl = document.getElementById('profile-name');
@@ -544,10 +576,10 @@ function openEditProfile() {
       .then(function () {
         currentBio = bio;
         renderAccount();
-        accountMessage('Profile saved.');
+        accountMessage(t('account.profileSaved'));
       })
       .catch(function (err) {
-        accountMessage(err.message || 'Could not save your profile.', true);
+        accountMessage(err.message || t('error.generic'), true);
       });
   });
   cancel.addEventListener('click', renderAccount);
@@ -558,16 +590,28 @@ function openPasswordPanel() {
   if (!box) return;
   box.innerHTML =
     '<div class="account__card">' +
-    '<h3>Change password</h3>' +
-    '<label class="account__field"><span>Current password</span>' +
+    '<h3>' +
+    escapeHtml(t('account.changePassword')) +
+    '</h3>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.currentPassword')) +
+    '</span>' +
     '<input class="account__input" id="pw-current" type="password" autocomplete="current-password"></label>' +
-    '<label class="account__field"><span>New password</span>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.newPassword')) +
+    '</span>' +
     '<input class="account__input" id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>' +
-    '<label class="account__field"><span>Confirm new password</span>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.confirmNewPassword')) +
+    '</span>' +
     '<input class="account__input" id="pw-confirm" type="password" autocomplete="new-password"></label>' +
     '<div class="account__actions">' +
-    '<button class="btn btn--primary" type="button" id="pw-save">Update password</button>' +
-    '<button class="btn" type="button" id="pw-cancel">Cancel</button>' +
+    '<button class="btn btn--primary" type="button" id="pw-save">' +
+    escapeHtml(t('account.updatePassword')) +
+    '</button>' +
+    '<button class="btn" type="button" id="pw-cancel">' +
+    escapeHtml(t('account.cancel')) +
+    '</button>' +
     '</div>' +
     '</div>';
   const current = document.getElementById('pw-current');
@@ -577,20 +621,20 @@ function openPasswordPanel() {
   const cancel = document.getElementById('pw-cancel');
   save.addEventListener('click', function () {
     if ((next.value || '').length < 6) {
-      accountMessage('New password must be at least 6 characters.', true);
+      accountMessage(t('account.passwordTooShort'), true);
       return;
     }
     if (next.value !== confirm.value) {
-      accountMessage('New passwords do not match.', true);
+      accountMessage(t('account.passwordsMismatch'), true);
       return;
     }
     changePassword(current.value || '', next.value)
       .then(function () {
-        accountMessage('Password updated.');
+        accountMessage(t('account.passwordUpdated'));
         openPasswordPanel();
       })
       .catch(function (err) {
-        accountMessage(err.message || 'Something went wrong.', true);
+        accountMessage(err.message || t('error.generic'), true);
       });
   });
   cancel.addEventListener('click', renderAccount);
@@ -604,12 +648,12 @@ function renderDevices(sessions) {
     .map(function (item) {
       const isCurrent = item.token === currentToken;
       const meta = item.last_seen
-        ? 'Last seen ' + relativeTime(item.last_seen)
+        ? t('account.lastSeen', { time: relativeTime(item.last_seen) })
         : '';
       return (
         '<li class="account__device">' +
         '<span class="account__device-name">' +
-        (isCurrent ? 'This device' : 'Another device') +
+        escapeHtml(isCurrent ? t('account.thisDevice') : t('account.otherDevice')) +
         '</span>' +
         '<span class="account__device-meta">' +
         escapeHtml(meta) +
@@ -618,25 +662,31 @@ function renderDevices(sessions) {
           ? ''
           : '<button class="btn account__device-revoke" type="button" data-token="' +
             escapeHtml(item.token) +
-            '">Revoke</button>') +
+            '">' +
+            escapeHtml(t('account.revoke')) +
+            '</button>') +
         '</li>'
       );
     })
     .join('');
   box.innerHTML =
     '<div class="account__devices-box">' +
-    '<h3>Devices</h3>' +
+    '<h3>' +
+    escapeHtml(t('account.devices')) +
+    '</h3>' +
     '<ul class="account__device-list">' +
     items +
     '</ul>' +
-    '<button class="btn" type="button" id="devices-revoke-all">Sign out everywhere</button>' +
+    '<button class="btn" type="button" id="devices-revoke-all">' +
+    escapeHtml(t('account.signOutEverywhere')) +
+    '</button>' +
     '</div>';
   box.querySelectorAll('.account__device-revoke').forEach(function (button) {
     button.addEventListener('click', function () {
       revokeSession(button.getAttribute('data-token'))
         .then(refreshDevices)
         .catch(function (err) {
-          accountMessage(err.message || 'Something went wrong.', true);
+          accountMessage(err.message || t('error.generic'), true);
         });
     });
   });
@@ -680,13 +730,306 @@ function refreshProfile() {
       if (sinceEl) sinceEl.textContent = memberSince(account.created);
       const bioEl = document.getElementById('profile-bio');
       if (bioEl) {
-        bioEl.textContent = currentBio || 'No bio yet.';
+        bioEl.textContent = currentBio || t('account.noBio');
       }
     })
     .catch(function () {
       if (!isLoggedIn()) renderAccount();
     });
   refreshDevices();
+}
+
+function loginFields() {
+  return (
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.identifier')) +
+    '</span>' +
+    '<input class="account__input" id="account-username" type="text" autocomplete="username" required>' +
+    '</label>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.password')) +
+    '</span>' +
+    '<input class="account__input" id="account-password" type="password" autocomplete="current-password" minlength="6" required>' +
+    '</label>'
+  );
+}
+
+function registerFields() {
+  return (
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.username')) +
+    '</span>' +
+    '<input class="account__input" id="account-username" type="text" autocomplete="username" maxlength="20" required>' +
+    '</label>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.email')) +
+    '</span>' +
+    '<input class="account__input" id="account-email" type="email" autocomplete="email" required>' +
+    '</label>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.password')) +
+    '</span>' +
+    '<input class="account__input" id="account-password" type="password" autocomplete="new-password" minlength="6" required>' +
+    '</label>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.confirmPassword')) +
+    '</span>' +
+    '<input class="account__input" id="account-confirm" type="password" autocomplete="new-password" minlength="6" required>' +
+    '</label>' +
+    '<label class="account__remember">' +
+    '<input type="checkbox" id="account-remember" checked>' +
+    '<span>' +
+    escapeHtml(t('account.remember')) +
+    '</span>' +
+    '<small>' +
+    escapeHtml(t('account.remember.desc')) +
+    '</small>' +
+    '</label>'
+  );
+}
+
+function openResetPanel() {
+  const panel = document.getElementById('account-panel');
+  if (!panel) return;
+  panel.innerHTML =
+    '<div class="account__card">' +
+    '<h3>' +
+    escapeHtml(t('account.reset.title')) +
+    '</h3>' +
+    '<p class="account__hint">' +
+    escapeHtml(t('account.reset.codeDesc')) +
+    '</p>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.username')) +
+    '</span>' +
+    '<input class="account__input" id="reset-username" type="text" autocomplete="username" required>' +
+    '</label>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.email')) +
+    '</span>' +
+    '<input class="account__input" id="reset-email" type="email" autocomplete="email" required>' +
+    '</label>' +
+    '<div class="account__actions">' +
+    '<button class="btn btn--primary" type="button" id="reset-send">' +
+    escapeHtml(t('account.reset.send')) +
+    '</button>' +
+    '<button class="btn" type="button" id="reset-back">' +
+    escapeHtml(t('account.cancel')) +
+    '</button>' +
+    '</div>' +
+    '<p class="account__message" id="account-message" role="status"></p>' +
+    '</div>';
+
+  const usernameEl = document.getElementById('reset-username');
+  const emailEl = document.getElementById('reset-email');
+  const send = document.getElementById('reset-send');
+  const back = document.getElementById('reset-back');
+  send.addEventListener('click', function () {
+    const username = (usernameEl.value || '').trim();
+    const email = (emailEl.value || '').trim();
+    accountMessage('', false);
+    if (!username) {
+      accountMessage(t('account.enterUsername'), true);
+      usernameEl.focus();
+      return;
+    }
+    if (!email || !isValidEmail(email)) {
+      accountMessage(t('account.emailInvalid'), true);
+      emailEl.focus();
+      return;
+    }
+    send.disabled = true;
+    requestReset(username, email)
+      .then(function (data) {
+        const code = (data && data.code) || '';
+        accountMessage(
+          code
+            ? t('account.reset.codeShown', { code: code })
+            : t('account.reset.invalid'),
+          !code
+        );
+        openResetCodePanel(username, code);
+      })
+      .catch(function (err) {
+        accountMessage(err.message || t('error.generic'), true);
+        send.disabled = false;
+      });
+  });
+  back.addEventListener('click', renderAccount);
+}
+
+function openResetCodePanel(username, code) {
+  const panel = document.getElementById('account-panel');
+  if (!panel) return;
+  panel.innerHTML =
+    '<div class="account__card">' +
+    '<h3>' +
+    escapeHtml(t('account.reset.title')) +
+    '</h3>' +
+    '<p class="account__hint">' +
+    escapeHtml(t('account.reset.code')) +
+    '</p>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.reset.code')) +
+    '</span>' +
+    '<input class="account__input" id="reset-code" type="text" autocomplete="one-time-code" required>' +
+    '</label>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.newPassword')) +
+    '</span>' +
+    '<input class="account__input" id="reset-password" type="password" autocomplete="new-password" minlength="6" required>' +
+    '</label>' +
+    '<label class="account__field"><span>' +
+    escapeHtml(t('account.confirmNewPassword')) +
+    '</span>' +
+    '<input class="account__input" id="reset-confirm" type="password" autocomplete="new-password" minlength="6" required>' +
+    '</label>' +
+    '<div class="account__actions">' +
+    '<button class="btn btn--primary" type="button" id="reset-submit">' +
+    escapeHtml(t('account.reset.submit')) +
+    '</button>' +
+    '<button class="btn" type="button" id="reset-back">' +
+    escapeHtml(t('account.cancel')) +
+    '</button>' +
+    '</div>' +
+    '<p class="account__message" id="account-message" role="status"></p>' +
+    '</div>';
+
+  const codeEl = document.getElementById('reset-code');
+  const passwordEl = document.getElementById('reset-password');
+  const confirmEl = document.getElementById('reset-confirm');
+  const submit = document.getElementById('reset-submit');
+  const back = document.getElementById('reset-back');
+  if (code) codeEl.value = code;
+  submit.addEventListener('click', function () {
+    accountMessage('', false);
+    if ((passwordEl.value || '').length < 6) {
+      accountMessage(t('account.passwordTooShort'), true);
+      passwordEl.focus();
+      return;
+    }
+    if (passwordEl.value !== confirmEl.value) {
+      accountMessage(t('account.passwordsMismatch'), true);
+      confirmEl.focus();
+      return;
+    }
+    submit.disabled = true;
+    resetPassword(username, (codeEl.value || '').trim(), passwordEl.value)
+      .then(function () {
+        accountMessage(t('account.reset.done'));
+        renderLoginPanel();
+      })
+      .catch(function (err) {
+        accountMessage(err.message || t('account.reset.invalid'), true);
+        submit.disabled = false;
+      });
+  });
+  back.addEventListener('click', renderAccount);
+}
+
+function renderLoginPanel() {
+  const panel = document.getElementById('account-panel');
+  if (!panel) return;
+  panel.innerHTML =
+    '<div class="account__card">' +
+    loginFields() +
+    '<label class="account__remember">' +
+    '<input type="checkbox" id="account-remember" checked>' +
+    '<span>' +
+    escapeHtml(t('account.remember')) +
+    '</span>' +
+    '</label>' +
+    '<div class="account__actions">' +
+    '<button class="btn btn--primary" type="button" id="account-login">' +
+    escapeHtml(t('account.login')) +
+    '</button>' +
+    '<button class="btn" type="button" id="account-register">' +
+    escapeHtml(t('account.register')) +
+    '</button>' +
+    '</div>' +
+    '<p class="account__message" id="account-message" role="status"></p>' +
+    '<p class="account__hint">' +
+    escapeHtml(t('account.hint')) +
+    '</p>' +
+    '</div>';
+
+  const fields = {
+    username: document.getElementById('account-username'),
+    email: null,
+    password: document.getElementById('account-password'),
+    confirm: null,
+    remember: document.getElementById('account-remember'),
+  };
+  const loginButton = document.getElementById('account-login');
+  const registerButton = document.getElementById('account-register');
+  if (loginButton) {
+    loginButton.addEventListener('click', function () {
+      signIn(false, fields);
+    });
+  }
+  if (registerButton) {
+    registerButton.addEventListener('click', function () {
+      openRegisterPanel();
+    });
+  }
+  if (fields.password) {
+    fields.password.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') signIn(false, fields);
+    });
+  }
+  const forgot = document.createElement('button');
+  forgot.type = 'button';
+  forgot.className = 'account__link-btn';
+  forgot.id = 'account-forgot';
+  forgot.textContent = t('account.forgotPassword');
+  forgot.addEventListener('click', openResetPanel);
+  panel.querySelector('.account__hint').after(forgot);
+}
+
+function openRegisterPanel() {
+  const panel = document.getElementById('account-panel');
+  if (!panel) return;
+  panel.innerHTML =
+    '<div class="account__card">' +
+    registerFields() +
+    '<div class="account__actions">' +
+    '<button class="btn" type="button" id="account-login">' +
+    escapeHtml(t('account.login')) +
+    '</button>' +
+    '<button class="btn btn--primary" type="button" id="account-register">' +
+    escapeHtml(t('account.register')) +
+    '</button>' +
+    '</div>' +
+    '<p class="account__message" id="account-message" role="status"></p>' +
+    '<p class="account__hint">' +
+    escapeHtml(t('account.hint')) +
+    '</p>' +
+    '</div>';
+
+  const fields = {
+    username: document.getElementById('account-username'),
+    email: document.getElementById('account-email'),
+    password: document.getElementById('account-password'),
+    confirm: document.getElementById('account-confirm'),
+    remember: document.getElementById('account-remember'),
+  };
+  const loginButton = document.getElementById('account-login');
+  const registerButton = document.getElementById('account-register');
+  if (loginButton) {
+    loginButton.addEventListener('click', function () {
+      renderLoginPanel();
+    });
+  }
+  if (registerButton) {
+    registerButton.addEventListener('click', function () {
+      signIn(true, fields);
+    });
+  }
+  if (fields.confirm) {
+    fields.confirm.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') signIn(true, fields);
+    });
+  }
 }
 
 function renderAccount() {
@@ -701,43 +1044,7 @@ function renderAccount() {
     return;
   }
 
-  panel.innerHTML =
-    '<div class="account__fields">' +
-    '<label class="account__field">' +
-    '<span>Username</span>' +
-    '<input class="account__input" id="account-username" type="text" autocomplete="username" maxlength="20" required>' +
-    '</label>' +
-    '<label class="account__field">' +
-    '<span>Password</span>' +
-    '<input class="account__input" id="account-password" type="password" autocomplete="current-password" minlength="6" required>' +
-    '</label>' +
-    '</div>' +
-    '<div class="account__actions">' +
-    '<button class="btn" type="button" id="account-login">Log in</button>' +
-    '<button class="btn btn--primary" type="button" id="account-register">Create account</button>' +
-    '</div>' +
-    '<p class="account__message" id="account-message" role="status"></p>' +
-    '<p class="account__hint">Your search history, theme and settings sync between your devices.</p>';
-
-  const usernameEl = document.getElementById('account-username');
-  const passwordEl = document.getElementById('account-password');
-  const loginButton = document.getElementById('account-login');
-  const registerButton = document.getElementById('account-register');
-  if (loginButton) {
-    loginButton.addEventListener('click', function () {
-      signIn(false, usernameEl, passwordEl);
-    });
-  }
-  if (registerButton) {
-    registerButton.addEventListener('click', function () {
-      signIn(true, usernameEl, passwordEl);
-    });
-  }
-  if (passwordEl) {
-    passwordEl.addEventListener('keydown', function (event) {
-      if (event.key === 'Enter') signIn(false, usernameEl, passwordEl);
-    });
-  }
+  renderLoginPanel();
 }
 
 function initBack() {

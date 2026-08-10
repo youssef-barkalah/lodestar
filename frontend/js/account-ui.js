@@ -1,4 +1,5 @@
 import { getSession, isLoggedIn, logout } from './account.js';
+import { t } from './i18n.js';
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, function (c) {
@@ -67,7 +68,9 @@ export function renderAccountChip() {
   if (isLoggedIn()) {
     const session = getSession();
     container.innerHTML =
-      '<button class="account-chip" type="button" id="account-chip-button" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">' +
+      '<button class="account-chip" type="button" id="account-chip-button" aria-haspopup="true" aria-expanded="false" aria-label="' +
+      t('account.menu.label') +
+      '">' +
       avatarMarkup(session) +
       '</button>' +
       '<div class="account-menu" id="account-menu" hidden>' +
@@ -77,9 +80,15 @@ export function renderAccountChip() {
       '<p class="account-menu__username">@' +
       escapeHtml(session.username) +
       '</p>' +
-      '<a class="account-menu__item" href="settings.html">Settings</a>' +
-      '<a class="account-menu__item" href="bookmarks.html">Saved</a>' +
-      '<button class="account-menu__item" type="button" id="account-menu-logout">Sign out</button>' +
+      '<a class="account-menu__item" href="settings.html">' +
+      escapeHtml(t('account.menu.settings')) +
+      '</a>' +
+      '<a class="account-menu__item" href="bookmarks.html">' +
+      escapeHtml(t('account.menu.saved')) +
+      '</a>' +
+      '<button class="account-menu__item" type="button" id="account-menu-logout">' +
+      escapeHtml(t('account.menu.signout')) +
+      '</button>' +
       '</div>';
     const button = document.getElementById('account-chip-button');
     const menu = document.getElementById('account-menu');
@@ -99,7 +108,9 @@ export function renderAccountChip() {
     });
   } else {
     container.innerHTML =
-      '<a class="account-chip account-chip--signin" href="settings.html">Sign in</a>';
+      '<a class="account-chip account-chip--signin" href="settings.html">' +
+      escapeHtml(t('nav.signin')) +
+      '</a>';
   }
 
   if (!initialized) {
@@ -114,6 +125,7 @@ export function renderAccountChip() {
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') closeMenu();
     });
+    window.addEventListener('lodestar:lang', renderAccountChip);
   }
 }
 

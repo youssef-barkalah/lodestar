@@ -1,6 +1,7 @@
 import { API_URL } from './api.js';
 import { directionOf } from './direction.js';
 import { recent, removeItem } from './history.js';
+import { t } from './i18n.js';
 
 const X_ICON =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
@@ -48,7 +49,7 @@ export function initSuggestions(input) {
   const list = document.createElement('ul');
   list.className = 'suggest';
   list.setAttribute('role', 'listbox');
-  list.setAttribute('aria-label', 'Search suggestions');
+  list.setAttribute('aria-label', t('suggest.aria'));
   list.hidden = true;
   box.appendChild(list);
 
@@ -108,7 +109,7 @@ export function initSuggestions(input) {
 
     const header = document.createElement('li');
     header.className = 'suggest__header';
-    header.textContent = 'Recent';
+    header.textContent = t('suggest.recent');
     list.appendChild(header);
 
     recents.forEach(function (item, index) {
@@ -126,7 +127,10 @@ export function initSuggestions(input) {
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'suggest__remove';
-      remove.setAttribute('aria-label', 'Remove "' + item.q + '" from history');
+      remove.setAttribute(
+        'aria-label',
+        t('suggest.remove', { q: item.q })
+      );
       remove.innerHTML = X_ICON;
       remove.addEventListener('mousedown', function (event) {
         event.preventDefault();

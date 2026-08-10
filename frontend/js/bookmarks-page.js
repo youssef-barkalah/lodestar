@@ -1,5 +1,6 @@
 import { all, remove } from './bookmarks.js';
 import { syncDown } from './sync.js';
+import { t } from './i18n.js';
 
 function hostnameOf(url) {
   try {
@@ -50,8 +51,7 @@ function render() {
   if (empty) empty.hidden = true;
   if (clearButton) clearButton.hidden = false;
   if (count) {
-    count.textContent =
-      items.length + (items.length === 1 ? ' saved item' : ' saved items');
+    count.textContent = t('bookmarks.count', { n: items.length });
   }
 
   items.forEach(function (item) {
@@ -77,16 +77,14 @@ function render() {
     const removeButton = document.createElement('button');
     removeButton.type = 'button';
     removeButton.className = 'history__remove';
-    removeButton.setAttribute('aria-label', 'Remove "' + (item.title || item.url) + '"');
-    removeButton.textContent = 'Remove';
+    removeButton.setAttribute(
+      'aria-label',
+      t('bookmarks.remove') + ': ' + (item.title || item.url)
+    );
+    removeButton.textContent = t('bookmarks.remove');
     removeButton.addEventListener('click', function () {
       remove(item.url);
-render();
-
-syncDown().then(render);
-document.addEventListener('visibilitychange', function () {
-  if (!document.hidden) syncDown().then(render);
-});
+      render();
     });
 
     li.appendChild(link);
@@ -116,5 +114,10 @@ if (backButton) {
     }
   });
 }
+
+syncDown().then(render);
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) syncDown().then(render);
+});
 
 render();

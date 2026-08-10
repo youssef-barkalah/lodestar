@@ -1,8 +1,20 @@
 import { API_URL } from './api.js';
 
 const SESSION_KEY = 'lodestar.account';
+const SESSION_KEY_SESSION = 'lodestar.account.session';
+
+function storeArea(session) {
+  return session && session.remember ? localStorage : sessionStorage;
+}
 
 function read() {
+  try {
+    const sessionRaw = sessionStorage.getItem(SESSION_KEY_SESSION);
+    if (sessionRaw) {
+      const raw = JSON.parse(sessionRaw);
+      if (raw && raw.token) return raw;
+    }
+  } catch (err) {}
   try {
     const raw = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
     return raw && raw.token ? raw : null;
@@ -12,14 +24,26 @@ function read() {
 }
 
 function write(session) {
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } catch (err) {}
+  const area = storeArea(session);
+  if (area === sessionStorage) {
+    try {
+      sessionStorage.setItem(SESSION_KEY_SESSION, JSON.stringify(session));
+      localStorage.removeItem(SESSION_KEY);
+    } catch (err) {}
+  } else {
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      sessionStorage.removeItem(SESSION_KEY_SESSION);
+    } catch (err) {}
+  }
 }
 
 function clearSession() {
   try {
     localStorage.removeItem(SESSION_KEY);
+  } catch (err) {}
+  try {
+    sessionStorage.removeItem(SESSION_KEY_SESSION);
   } catch (err) {}
 }
 
@@ -56,30 +80,33 @@ async function request(path, method, body, token) {
   return data;
 }
 
-function storeSession(data) {
+function storeSession(data, remember) {
   write({
     token: data.token,
     username: data.username,
     displayName: data.displayName || '',
     avatar: data.avatar || '',
+    remember: !!remember,
   });
 }
 
-export async function register(username, password) {
+export async function register(username, email, password) {
   const data = await request('/api/auth/register', 'POST', {
     username,
+    email,
     password,
   });
-  storeSession(data);
+  storeSession(data, true);
   return data;
 }
 
-export async function login(username, password) {
+export async function login(identifier, password, remember) {
   const data = await request('/api/auth/login', 'POST', {
-    username,
+    identifier,
     password,
+    remember: !!remember,
   });
-  storeSession(data);
+  storeSession(data, remember);
   return data;
 }
 
@@ -175,4 +202,21 @@ export async function pushSync(payload) {
   const session = read();
   if (!session) return;
   await request('/api/sync', 'POST', payload, session.token);
+}
+
+export async function requestReset(username, email) {
+  const data = await request('/api/auth/forgot', 'POST', {
+    username,
+    email,
+  });
+  return data;
+}
+
+export async function resetPassword(username, code, password) {
+  const data = await request('/api/auth/reset', 'POST', {
+    username,
+    code,
+    password,
+  });
+  return data;
 }

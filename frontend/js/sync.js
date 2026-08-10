@@ -35,7 +35,6 @@ export function applyRemote(remote) {
   if (remote.language !== undefined) {
     const value = remote.language;
     if (
-      value === 'any' ||
       LANGUAGES.some(function (language) {
         return language.code === value;
       })

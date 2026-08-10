@@ -1,9 +1,9 @@
 (function () {
   try {
     var value = localStorage.getItem('lodestar.language') || 'en';
-    var code = value === 'any' ? 'en' : value;
-    if (/^[a-z]{2}$/.test(code)) {
-      document.documentElement.lang = code;
-    }
+    var code = /^[a-z]{2}$/.test(value) ? value : 'en';
+    document.documentElement.lang = code;
+    document.documentElement.dir =
+      code === 'ar' || code === 'he' ? 'rtl' : 'ltr';
   } catch (e) {}
 })();

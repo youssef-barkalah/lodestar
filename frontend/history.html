@@ -18,11 +18,11 @@
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/settings.css">
 </head>
-<body>
+<body data-page="history">
   <a class="skip-link" href="#main">Skip to content</a>
 
   <header class="settings-header">
-    <button class="settings-header__back" type="button" id="history-back" aria-label="Go back">
+    <button class="settings-header__back" type="button" id="history-back" data-i18n-aria="go.back">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <line x1="19" y1="12" x2="5" y2="12"></line>
         <polyline points="12 19 5 12 12 5"></polyline>
@@ -36,27 +36,28 @@
   </header>
 
   <main id="main" class="settings" tabindex="-1">
-    <h1 class="settings__title">History</h1>
+    <h1 class="settings__title" data-i18n="history.title">History</h1>
 
     <div class="history__bar">
       <p class="history__count" id="history-count"></p>
-      <button class="btn history__clear" type="button" id="history-clear">Clear history</button>
+      <button class="btn history__clear" type="button" id="history-clear" data-i18n="history.clear">Clear history</button>
     </div>
 
     <ul class="history__list" id="history-list"></ul>
 
     <div class="empty" id="history-empty" hidden>
       <h2 class="empty__title" id="history-empty-title"></h2>
-      <p class="empty__text">Searches you make will appear here.</p>
+      <p class="empty__text" data-i18n="history.empty.desc">Searches you make will appear here.</p>
     </div>
   </main>
 
   <footer class="page-footer">
-    <a href="index.html">Back to search</a>
+    <a href="index.html" data-i18n="back.to.search">Back to search</a>
     <span aria-hidden="true">Â·</span>
-    <span>History is stored only on this device</span>
+    <span data-i18n="history.footer">History is stored only on this device</span>
   </footer>
 
+  <script type="module" src="js/i18n.js"></script>
   <script type="module" src="js/theme.js"></script>
   <script type="module" src="js/history-page.js"></script>
 </body>
