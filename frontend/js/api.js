@@ -1,5 +1,6 @@
 const DEFAULT_API_URL = 'http://localhost:3001';
 const HOSTED_API_URL = 'https://lodestar-c2zh.onrender.com';
+import { t } from './i18n.js';
 
 export const API_URL = (
   window.LODESTAR_API ||
@@ -49,9 +50,7 @@ export async function fetchResults(query, type, page, options) {
   try {
     response = await fetch(url, { headers: { Accept: 'application/json' } });
   } catch (err) {
-    throw new Error(
-      "Lodestar couldn't reach the search service. Please try again."
-    );
+    throw new Error(t('error.network'));
   }
 
   let body = null;
@@ -63,7 +62,7 @@ export async function fetchResults(query, type, page, options) {
     const message =
       body && body.error && body.error.message
         ? body.error.message
-        : 'Something went wrong. Please try again.';
+        : t('error.generic');
     const error = new Error(message);
     error.code = body && body.error ? body.error.code : 'unknown';
     throw error;
