@@ -31,6 +31,11 @@ export function isLoggedIn() {
   return !!read();
 }
 
+export function refreshSession(fields) {
+  const current = read();
+  if (current) write(Object.assign({}, current, fields || {}));
+}
+
 async function request(path, method, body, token) {
   const headers = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -51,12 +56,21 @@ async function request(path, method, body, token) {
   return data;
 }
 
+function storeSession(data) {
+  write({
+    token: data.token,
+    username: data.username,
+    displayName: data.displayName || '',
+    avatar: data.avatar || '',
+  });
+}
+
 export async function register(username, password) {
   const data = await request('/api/auth/register', 'POST', {
     username,
     password,
   });
-  write({ token: data.token, username: data.username });
+  storeSession(data);
   return data;
 }
 
@@ -65,7 +79,7 @@ export async function login(username, password) {
     username,
     password,
   });
-  write({ token: data.token, username: data.username });
+  storeSession(data);
   return data;
 }
 
@@ -77,6 +91,78 @@ export async function logout() {
     } catch (err) {}
   }
   clearSession();
+}
+
+export async function getAccount() {
+  const session = read();
+  if (!session) return null;
+  const data = await request('/api/account', 'GET', undefined, session.token);
+  return Object.assign({}, session, data);
+}
+
+export async function updateAccount(patch) {
+  const session = read();
+  if (!session) return null;
+  const data = await request('/api/account', 'PATCH', patch, session.token);
+  const next = Object.assign({}, session, {
+    displayName: data.displayName || '',
+  });
+  write(next);
+  return next;
+}
+
+export async function uploadAvatar(data) {
+  const session = read();
+  if (!session) return;
+  await request('/api/account/avatar', 'PUT', { data }, session.token);
+  write(Object.assign({}, session, { avatar: data }));
+}
+
+export async function removeAvatar() {
+  const session = read();
+  if (!session) return;
+  await request('/api/account/avatar', 'DELETE', undefined, session.token);
+  write(Object.assign({}, session, { avatar: '' }));
+}
+
+export async function changePassword(current, next) {
+  const session = read();
+  if (!session) return;
+  await request('/api/auth/password', 'POST', { current, next }, session.token);
+}
+
+export async function deleteAccount() {
+  const session = read();
+  if (session) {
+    try {
+      await request('/api/auth/account', 'DELETE', undefined, session.token);
+    } catch (err) {}
+  }
+  clearSession();
+}
+
+export async function listSessions() {
+  const session = read();
+  if (!session) return [];
+  const data = await request('/api/sessions', 'GET', undefined, session.token);
+  return Array.isArray(data.sessions) ? data.sessions : [];
+}
+
+export async function revokeSession(token) {
+  const session = read();
+  if (!session) return;
+  await request(
+    '/api/sessions/' + encodeURIComponent(token),
+    'DELETE',
+    undefined,
+    session.token
+  );
+}
+
+export async function revokeAllSessions() {
+  const session = read();
+  if (!session) return;
+  await request('/api/sessions', 'DELETE', undefined, session.token);
 }
 
 export async function pullSync() {

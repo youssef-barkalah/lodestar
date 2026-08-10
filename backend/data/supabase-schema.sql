@@ -14,6 +14,9 @@ create table if not exists public.users (
   hash text not null,
   token text,
   token_at timestamptz,
+  display_name text,
+  bio text,
+  avatar text,
   created_at timestamptz not null default now()
 );
 
@@ -24,5 +27,17 @@ create table if not exists public.user_sync (
   theme text not null default 'system',
   suggestions text not null default 'on',
   language text not null default 'en',
+  bookmarks jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
+
+-- Signed-in devices. One row per active session token.
+create table if not exists public.sessions (
+  token text primary key,
+  user_id uuid not null references public.users (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  last_seen timestamptz not null default now(),
+  label text
+);
+
+create index if not exists sessions_user_idx on public.sessions (user_id);

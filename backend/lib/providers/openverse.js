@@ -1,7 +1,25 @@
-import { config } from './config.js';
+import { config } from '../config.js';
 
 const API = 'https://api.openverse.org/v1/images/';
 const PAGE_SIZE = 20;
+
+const LICENSES = {
+  by: 'CC BY',
+  'by-sa': 'CC BY-SA',
+  'by-nc': 'CC BY-NC',
+  'by-nc-sa': 'CC BY-NC-SA',
+  'by-nd': 'CC BY-ND',
+  'by-nc-nd': 'CC BY-NC-ND',
+  zero: 'CC0',
+  pdm: 'Public Domain',
+  other: 'CC',
+};
+
+function licenseLabel(code, version) {
+  const base = LICENSES[code] || (code ? 'CC ' + code : '');
+  if (!base) return '';
+  return version ? base + ' ' + version : base;
+}
 
 async function fetchJson(params, retries) {
   const tries = retries == null ? 2 : retries;
@@ -37,26 +55,38 @@ async function fetchJson(params, retries) {
   return null;
 }
 
-export async function searchImages(query) {
+export async function searchImages(query, options) {
+  const opts = options || {};
+  const page = Math.max(1, Math.min(100, Number(opts.page) || 1));
   const json = await fetchJson(
     new URLSearchParams({
-      q: query,
+      q: String(query || '').trim(),
+      page: String(page),
       page_size: String(PAGE_SIZE),
     })
   );
   if (!json || !Array.isArray(json.results)) return { results: [] };
 
-  const results = json.results
-    .filter((item) => item && item.url)
-    .map((item) => ({
+  const seen = new Set();
+  const results = [];
+  for (const item of json.results) {
+    if (!item || !item.url) continue;
+    if (seen.has(item.url)) continue;
+    seen.add(item.url);
+    const creator = String(item.creator || '').trim();
+    results.push({
       title: String(item.title || '').trim(),
       url: item.url,
       thumbnail: item.thumbnail || item.url,
       sourceUrl: item.foreign_landing_url || item.url,
-      content: item.creator ? 'Creator: ' + item.creator : '',
       source: item.source || 'Openverse',
-      engines: [item.source || 'Openverse'],
-    }));
+      creator,
+      license: licenseLabel(item.license, item.license_version),
+      licenseUrl: item.license_url || '',
+      content: creator ? 'Creator: ' + creator : '',
+      engines: ['Openverse'],
+    });
+  }
 
   return { results };
 }

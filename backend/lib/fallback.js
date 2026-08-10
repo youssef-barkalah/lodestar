@@ -1,6 +1,6 @@
 import { searchDuckDuckGo } from './ddg.js';
 import { searchBing } from './bing.js';
-import { searchImages as searchOpenverse } from './openverse.js';
+import { searchImages as searchOpenverse } from './providers/openverse.js';
 import { searchImages as searchWikimedia } from './wikimedia.js';
 import { searchNews } from './bingnews.js';
 import { searchVideos } from './youtube.js';

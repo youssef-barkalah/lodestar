@@ -1,4 +1,5 @@
 import { all, remove } from './bookmarks.js';
+import { syncDown } from './sync.js';
 
 function hostnameOf(url) {
   try {
@@ -80,7 +81,12 @@ function render() {
     removeButton.textContent = 'Remove';
     removeButton.addEventListener('click', function () {
       remove(item.url);
-      render();
+render();
+
+syncDown().then(render);
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) syncDown().then(render);
+});
     });
 
     li.appendChild(link);

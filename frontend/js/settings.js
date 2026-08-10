@@ -1,18 +1,33 @@
 import { getTheme, setTheme } from './theme.js';
 import {
+  changePassword,
+  deleteAccount,
+  getAccount,
   getSession,
   isLoggedIn,
+  listSessions,
   login,
   logout,
   pullSync,
   pushSync,
+  refreshSession,
   register,
+  removeAvatar,
+  revokeAllSessions,
+  revokeSession,
+  updateAccount,
+  uploadAvatar,
 } from './account.js';
 import {
   all as loadHistoryItems,
   mergeRemote,
   setting as historySettingValue,
 } from './history.js';
+import {
+  all as loadBookmarks,
+  mergeRemote as mergeRemoteBookmarks,
+} from './bookmarks.js';
+import { initialsAvatar, avatarColor } from './account-ui.js';
 import {
   LANGUAGES,
   getLanguage,
@@ -194,6 +209,7 @@ function syncDown() {
   return pullSync().then(function (remote) {
     if (!remote) return;
     if (Array.isArray(remote.history)) mergeRemote(remote.history);
+    if (Array.isArray(remote.bookmarks)) mergeRemoteBookmarks(remote.bookmarks);
     if (VALID_HISTORY.indexOf(remote.historySetting) !== -1) {
       save(HISTORY_KEY, remote.historySetting);
       initRadioGroup('history', remote.historySetting);
@@ -229,6 +245,7 @@ function fullSyncPayload() {
     theme: getTheme(),
     suggestions: load(SUGGESTIONS_KEY, 'on'),
     language: getLanguage(),
+    bookmarks: loadBookmarks().slice(0, 200),
   };
 }
 
@@ -284,24 +301,403 @@ function signOut() {
     .then(renderAccount);
 }
 
+let currentBio = '';
+
+function relativeTime(iso) {
+  if (!iso) return '';
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return '';
+  const diff = Date.now() - then;
+  const minutes = Math.round(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return minutes + 'm ago';
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return hours + 'h ago';
+  const days = Math.round(hours / 24);
+  if (days < 30) return days + 'd ago';
+  return new Date(then).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function memberSince(iso) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return (
+    'Member since ' +
+    date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  );
+}
+
+function avatarMarkup(session) {
+  if (session.avatar) {
+    return (
+      '<img class="account__avatar-img" src="' +
+      escapeHtml(session.avatar) +
+      '" alt="">'
+    );
+  }
+  const name = session.displayName || session.username;
+  return (
+    '<span class="account__avatar-img account__avatar-img--initials" style="background:' +
+    avatarColor(name) +
+    '">' +
+    escapeHtml(initialsAvatar(name)) +
+    '</span>'
+  );
+}
+
+function profileMarkup(session) {
+  const name = session.displayName || session.username;
+  const removePhoto = session.avatar
+    ? '<button class="account__link-btn" id="account-avatar-remove" type="button">Remove photo</button>'
+    : '';
+  return (
+    '<div class="account__profile">' +
+    '<button class="account__avatar" id="account-avatar" type="button" aria-label="Change profile photo" title="Change profile photo">' +
+    avatarMarkup(session) +
+    '</button>' +
+    '<div class="account__profile-text">' +
+    '<p class="account__name" id="profile-name-text">' +
+    escapeHtml(name) +
+    '</p>' +
+    '<p class="account__meta">@' +
+    escapeHtml(session.username) +
+    (removePhoto ? ' \u00b7 ' + removePhoto : '') +
+    '</p>' +
+    '<p class="account__meta" id="profile-since"></p>' +
+    '<p class="account__bio" id="profile-bio"></p>' +
+    '</div>' +
+    '</div>' +
+    '<div class="account__actions">' +
+    '<button class="btn" type="button" id="account-edit-profile">Edit profile</button>' +
+    '<button class="btn" type="button" id="account-password">Change password</button>' +
+    '<button class="btn" type="button" id="account-sync">Sync now</button>' +
+    '<button class="btn" type="button" id="account-logout">Sign out</button>' +
+    '</div>' +
+    '<div id="account-subpanel"></div>' +
+    '<div id="account-devices"></div>' +
+    '<div class="account__danger">' +
+    '<h3>Delete account</h3>' +
+    '<p>This permanently removes your account and all synced data from Lodestar.</p>' +
+    '<button class="btn btn--danger" type="button" id="account-delete">Delete account</button>' +
+    '<div class="account__card" id="delete-confirm" hidden>' +
+    '<p>Type <strong>' +
+    escapeHtml(session.username) +
+    '</strong> to confirm.</p>' +
+    '<input class="account__input" id="delete-username" type="text" autocomplete="off">' +
+    '<div class="account__actions">' +
+    '<button class="btn btn--danger" type="button" id="delete-confirm-btn" disabled>Delete permanently</button>' +
+    '<button class="btn" type="button" id="delete-cancel">Cancel</button>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    '<input id="account-avatar-input" type="file" accept="image/png,image/jpeg" hidden>' +
+    '<p class="account__message" id="account-message" role="status"></p>'
+  );
+}
+
+function confirmDelete() {
+  accountMessage('', false);
+  deleteAccount()
+    .then(function () {
+      renderAccount();
+    })
+    .catch(function (err) {
+      accountMessage(err.message || 'Could not delete your account.', true);
+    });
+}
+
+function wireProfile() {
+  const avatar = document.getElementById('account-avatar');
+  const input = document.getElementById('account-avatar-input');
+  if (avatar && input) {
+    avatar.addEventListener('click', function () {
+      input.click();
+    });
+    input.addEventListener('change', function () {
+      handleAvatarFile(input.files && input.files[0]);
+      input.value = '';
+    });
+  }
+  const remove = document.getElementById('account-avatar-remove');
+  if (remove) {
+    remove.addEventListener('click', function () {
+      removeAvatar()
+        .then(function () {
+          renderAccount();
+          accountMessage('Profile photo removed.');
+        })
+        .catch(function (err) {
+          accountMessage(err.message || 'Could not remove your photo.', true);
+        });
+    });
+  }
+  const edit = document.getElementById('account-edit-profile');
+  if (edit) edit.addEventListener('click', openEditProfile);
+  const password = document.getElementById('account-password');
+  if (password) password.addEventListener('click', openPasswordPanel);
+  const sync = document.getElementById('account-sync');
+  if (sync) sync.addEventListener('click', syncNow);
+  const out = document.getElementById('account-logout');
+  if (out) out.addEventListener('click', signOut);
+  const del = document.getElementById('account-delete');
+  const confirm = document.getElementById('delete-confirm');
+  const confirmBtn = document.getElementById('delete-confirm-btn');
+  const deleteUsername = document.getElementById('delete-username');
+  const cancel = document.getElementById('delete-cancel');
+  if (del && confirm) {
+    del.addEventListener('click', function () {
+      confirm.hidden = false;
+    });
+  }
+  if (deleteUsername && confirmBtn) {
+    deleteUsername.addEventListener('input', function () {
+      confirmBtn.disabled =
+        deleteUsername.value.trim() !== getSession().username;
+    });
+    deleteUsername.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' && !confirmBtn.disabled) confirmDelete();
+    });
+  }
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', confirmDelete);
+  }
+  if (cancel && confirm) {
+    cancel.addEventListener('click', function () {
+      confirm.hidden = true;
+    });
+  }
+}
+
+function handleAvatarFile(file) {
+  if (!file) return;
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+    accountMessage('Choose a PNG or JPEG photo.', true);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function () {
+    const image = new Image();
+    image.onload = function () {
+      const size = 160;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const context = canvas.getContext('2d');
+      const scale = Math.max(size / image.width, size / image.height);
+      const width = image.width * scale;
+      const height = image.height * scale;
+      context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      uploadAvatar(dataUrl)
+        .then(function () {
+          renderAccount();
+          accountMessage('Profile photo updated.');
+        })
+        .catch(function (err) {
+          accountMessage(err.message || 'Could not save your photo.', true);
+        });
+    };
+    image.onerror = function () {
+      accountMessage('Could not read that image.', true);
+    };
+    image.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function openEditProfile() {
+  const session = getSession();
+  const box = document.getElementById('account-subpanel');
+  if (!box) return;
+  box.innerHTML =
+    '<div class="account__card">' +
+    '<h3>Edit profile</h3>' +
+    '<label class="account__field"><span>Display name</span>' +
+    '<input class="account__input" id="profile-name" type="text" maxlength="40" value="' +
+    escapeHtml(session.displayName || '') +
+    '"></label>' +
+    '<label class="account__field"><span>Bio</span>' +
+    '<textarea class="account__input account__textarea" id="profile-bio-input" rows="3" maxlength="300">' +
+    escapeHtml(currentBio || '') +
+    '</textarea></label>' +
+    '<div class="account__actions">' +
+    '<button class="btn btn--primary" type="button" id="profile-save">Save</button>' +
+    '<button class="btn" type="button" id="profile-cancel">Cancel</button>' +
+    '</div>' +
+    '</div>';
+  const nameEl = document.getElementById('profile-name');
+  const bioEl = document.getElementById('profile-bio-input');
+  const save = document.getElementById('profile-save');
+  const cancel = document.getElementById('profile-cancel');
+  save.addEventListener('click', function () {
+    const displayName = (nameEl.value || '').trim().slice(0, 40);
+    const bio = (bioEl.value || '').trim().slice(0, 300);
+    updateAccount({ displayName, bio })
+      .then(function () {
+        currentBio = bio;
+        renderAccount();
+        accountMessage('Profile saved.');
+      })
+      .catch(function (err) {
+        accountMessage(err.message || 'Could not save your profile.', true);
+      });
+  });
+  cancel.addEventListener('click', renderAccount);
+}
+
+function openPasswordPanel() {
+  const box = document.getElementById('account-subpanel');
+  if (!box) return;
+  box.innerHTML =
+    '<div class="account__card">' +
+    '<h3>Change password</h3>' +
+    '<label class="account__field"><span>Current password</span>' +
+    '<input class="account__input" id="pw-current" type="password" autocomplete="current-password"></label>' +
+    '<label class="account__field"><span>New password</span>' +
+    '<input class="account__input" id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>' +
+    '<label class="account__field"><span>Confirm new password</span>' +
+    '<input class="account__input" id="pw-confirm" type="password" autocomplete="new-password"></label>' +
+    '<div class="account__actions">' +
+    '<button class="btn btn--primary" type="button" id="pw-save">Update password</button>' +
+    '<button class="btn" type="button" id="pw-cancel">Cancel</button>' +
+    '</div>' +
+    '</div>';
+  const current = document.getElementById('pw-current');
+  const next = document.getElementById('pw-new');
+  const confirm = document.getElementById('pw-confirm');
+  const save = document.getElementById('pw-save');
+  const cancel = document.getElementById('pw-cancel');
+  save.addEventListener('click', function () {
+    if ((next.value || '').length < 6) {
+      accountMessage('New password must be at least 6 characters.', true);
+      return;
+    }
+    if (next.value !== confirm.value) {
+      accountMessage('New passwords do not match.', true);
+      return;
+    }
+    changePassword(current.value || '', next.value)
+      .then(function () {
+        accountMessage('Password updated.');
+        openPasswordPanel();
+      })
+      .catch(function (err) {
+        accountMessage(err.message || 'Something went wrong.', true);
+      });
+  });
+  cancel.addEventListener('click', renderAccount);
+}
+
+function renderDevices(sessions) {
+  const box = document.getElementById('account-devices');
+  if (!box || !Array.isArray(sessions) || !sessions.length) return;
+  const currentToken = getSession().token;
+  const items = sessions
+    .map(function (item) {
+      const isCurrent = item.token === currentToken;
+      const meta = item.last_seen
+        ? 'Last seen ' + relativeTime(item.last_seen)
+        : '';
+      return (
+        '<li class="account__device">' +
+        '<span class="account__device-name">' +
+        (isCurrent ? 'This device' : 'Another device') +
+        '</span>' +
+        '<span class="account__device-meta">' +
+        escapeHtml(meta) +
+        '</span>' +
+        (isCurrent
+          ? ''
+          : '<button class="btn account__device-revoke" type="button" data-token="' +
+            escapeHtml(item.token) +
+            '">Revoke</button>') +
+        '</li>'
+      );
+    })
+    .join('');
+  box.innerHTML =
+    '<div class="account__devices-box">' +
+    '<h3>Devices</h3>' +
+    '<ul class="account__device-list">' +
+    items +
+    '</ul>' +
+    '<button class="btn" type="button" id="devices-revoke-all">Sign out everywhere</button>' +
+    '</div>';
+  box.querySelectorAll('.account__device-revoke').forEach(function (button) {
+    button.addEventListener('click', function () {
+      revokeSession(button.getAttribute('data-token'))
+        .then(refreshDevices)
+        .catch(function (err) {
+          accountMessage(err.message || 'Something went wrong.', true);
+        });
+    });
+  });
+  const all = document.getElementById('devices-revoke-all');
+  if (all) {
+    all.addEventListener('click', function () {
+      revokeAllSessions()
+        .then(function () {
+          return logout().catch(function () {});
+        })
+        .then(renderAccount);
+    });
+  }
+}
+
+function refreshDevices() {
+  listSessions()
+    .then(function (sessions) {
+      renderDevices(sessions);
+    })
+    .catch(function () {});
+}
+
+function refreshProfile() {
+  getAccount()
+    .then(function (account) {
+      if (!account) {
+        renderAccount();
+        return;
+      }
+      refreshSession({
+        displayName: account.displayName || '',
+        avatar: account.avatar || '',
+      });
+      currentBio = account.bio || '';
+      const nameEl = document.getElementById('profile-name-text');
+      if (nameEl) {
+        nameEl.textContent = account.displayName || account.username;
+      }
+      const sinceEl = document.getElementById('profile-since');
+      if (sinceEl) sinceEl.textContent = memberSince(account.created);
+      const bioEl = document.getElementById('profile-bio');
+      if (bioEl) {
+        bioEl.textContent = currentBio || 'No bio yet.';
+      }
+    })
+    .catch(function () {
+      if (!isLoggedIn()) renderAccount();
+    });
+  refreshDevices();
+}
+
 function renderAccount() {
   const panel = document.getElementById('account-panel');
   if (!panel) return;
+
   if (isLoggedIn()) {
     const session = getSession();
-    panel.innerHTML =
-      '<p class="account__status">Signed in as <strong>' +
-      escapeHtml(session.username) +
-      '</strong></p>' +
-      '<div class="account__actions">' +
-      '<button class="btn" type="button" id="account-sync">Sync now</button>' +
-      '<button class="btn" type="button" id="account-logout">Sign out</button>' +
-      '</div>' +
-      '<p class="account__message" id="account-message" role="status"></p>';
-    const sync = document.getElementById('account-sync');
-    if (sync) sync.addEventListener('click', syncNow);
-    const out = document.getElementById('account-logout');
-    if (out) out.addEventListener('click', signOut);
+    panel.innerHTML = profileMarkup(session);
+    wireProfile();
+    refreshProfile();
     return;
   }
 
@@ -363,3 +759,4 @@ initSafeSearch();
 initLanguage();
 renderAccount();
 initBack();
+syncDown();

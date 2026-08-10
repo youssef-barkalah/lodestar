@@ -361,23 +361,45 @@ function formatViews(value) {
 function imageItem(result, index) {
   if (!result.thumbnail) return '';
   const source = hostnameOf(result.sourceUrl || result.url);
-  const caption =
-    result.title || source
-      ? '<figcaption class="image-card__caption">' +
-        (result.title
-          ? '<span class="image-card__title"' +
-            dirAttr(result.title) +
-            '>' +
-            escapeHtml(result.title) +
-            '</span>'
-          : '') +
-        (source
-          ? '<span class="image-card__source">' +
-            escapeHtml(source) +
-            '</span>'
-          : '') +
-        '</figcaption>'
-      : '';
+  const captionParts = [];
+  if (result.title) {
+    captionParts.push(
+      '<span class="image-card__title"' +
+        dirAttr(result.title) +
+        '>' +
+        escapeHtml(result.title) +
+        '</span>'
+    );
+  }
+  if (result.creator) {
+    captionParts.push(
+      '<span class="image-card__creator">by ' +
+        escapeHtml(result.creator) +
+        '</span>'
+    );
+  }
+  if (source) {
+    captionParts.push(
+      '<span class="image-card__source">' + escapeHtml(source) + '</span>'
+    );
+  }
+  if (result.license) {
+    const label = escapeHtml(result.license);
+    captionParts.push(
+      result.licenseUrl
+        ? '<a class="image-card__license" href="' +
+            escapeHtml(result.licenseUrl) +
+            '" target="_blank" rel="noopener nofollow">' +
+            label +
+            '</a>'
+        : '<span class="image-card__license">' + label + '</span>'
+    );
+  }
+  const caption = captionParts.length
+    ? '<figcaption class="image-card__caption">' +
+      captionParts.join('') +
+      '</figcaption>'
+    : '';
   const related = (result.related || []).filter(function (item) {
     return item && item.thumbnail;
   });

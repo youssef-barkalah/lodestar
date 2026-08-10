@@ -34,8 +34,15 @@ export function normalizeResults(payload) {
 
     if (item.category) result.category = cleanText(item.category, 60);
     if (item.publishedDate) result.publishedDate = item.publishedDate;
+    if (item.publishedAt && !item.publishedDate) {
+      result.publishedDate = item.publishedAt;
+    }
     if (item.length != null) result.duration = Number(item.length);
     if (item.author) result.author = cleanText(item.author, 80);
+    if (item.creator) result.creator = cleanText(item.creator, 120);
+    if (item.license) result.license = cleanText(item.license, 40);
+    if (item.licenseUrl) result.licenseUrl = item.licenseUrl;
+    if (item.instance) result.instance = cleanText(item.instance, 120);
     if (item.views != null) result.views = item.views;
     if (item.sourceUrl) result.sourceUrl = item.sourceUrl;
     if (Array.isArray(item.related)) result.related = item.related;

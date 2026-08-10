@@ -404,6 +404,24 @@
   white-space: nowrap;
 }
 
+.image-card__creator,
+.image-card__license {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-card__license {
+  text-decoration: none;
+}
+
+.image-card__license:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
 .image-card__link:hover ~ .image-card__caption .image-card__title {
   color: var(--accent-text);
   text-decoration: underline;

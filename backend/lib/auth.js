@@ -67,18 +67,26 @@ function newToken() {
 const DEFAULT_SYNC = {
   historySetting: '24h',
   history: [],
+  bookmarks: [],
   theme: 'system',
   suggestions: 'on',
   language: 'en',
 };
 
+function userPublic(user) {
+  return {
+    username: user.username,
+    displayName: user.display_name || '',
+    bio: user.bio || '',
+    avatar: user.avatar || '',
+    created: user.created_at || null,
+  };
+}
+
 async function findUserBy(field, value) {
   const result = await db(
     'GET',
-    '/users?select=id,username,salt,hash,token,token_at&' +
-      field +
-      '=eq.' +
-      encode(value)
+    '/users?select=*&' + field + '=eq.' + encode(value)
   );
   if (!result.ok || !Array.isArray(result.data) || !result.data.length) {
     return null;
@@ -86,13 +94,66 @@ async function findUserBy(field, value) {
   return result.data[0];
 }
 
-async function setToken(userId, token) {
-  const value = token === null ? null : new Date().toISOString();
-  await db(
-    'PATCH',
-    '/users?id=eq.' + encode(userId),
-    { token: token, token_at: value },
+async function findUserById(userId) {
+  const result = await db(
+    'GET',
+    '/users?select=*&id=eq.' + encode(userId)
   );
+  if (!result.ok || !Array.isArray(result.data) || !result.data.length) {
+    return null;
+  }
+  return result.data[0];
+}
+
+async function findSession(token) {
+  const result = await db(
+    'GET',
+    '/sessions?select=*&token=eq.' + encode(token)
+  );
+  if (!result.ok || !Array.isArray(result.data) || !result.data.length) {
+    return null;
+  }
+  return result.data[0];
+}
+
+async function createSession(userId, label) {
+  const token = newToken();
+  const now = new Date().toISOString();
+  const result = await db('POST', '/sessions', {
+    token,
+    user_id: userId,
+    created_at: now,
+    last_seen: now,
+    label: label || null,
+  });
+  if (!result.ok) {
+    throw new Error(messageFrom(result.data));
+  }
+  return token;
+}
+
+async function loadSync(userId) {
+  const result = await db(
+    'GET',
+    '/user_sync?select=*&id=eq.' + encode(userId)
+  );
+  const row =
+    result.ok && Array.isArray(result.data) && result.data[0]
+      ? result.data[0]
+      : null;
+  if (!row) return DEFAULT_SYNC;
+  return {
+    historySetting:
+      typeof row.history_setting === 'string'
+        ? row.history_setting
+        : '24h',
+    theme: typeof row.theme === 'string' ? row.theme : 'system',
+    suggestions:
+      typeof row.suggestions === 'string' ? row.suggestions : 'on',
+    language: typeof row.language === 'string' ? row.language : 'en',
+    history: Array.isArray(row.history) ? row.history : [],
+    bookmarks: Array.isArray(row.bookmarks) ? row.bookmarks : [],
+  };
 }
 
 export async function register(username, password) {
@@ -120,7 +181,9 @@ export async function register(username, password) {
     }
     throw new Error(messageFrom(result.data));
   }
-  return login(username, password);
+  const user = await findUserBy('username', name);
+  const token = await createSession(user.id, null);
+  return Object.assign({ token }, userPublic(user));
 }
 
 export async function login(username, password) {
@@ -129,62 +192,139 @@ export async function login(username, password) {
   if (!account || !verifyPassword(String(password || ''), account)) {
     throw new Error('Unknown username or wrong password.');
   }
-  const token = newToken();
-  await setToken(account.id, token);
-  return { token, username: account.username };
+  const token = await createSession(account.id, null);
+  return Object.assign({ token }, userPublic(account));
 }
 
 export async function logout(token) {
   if (!token) return;
-  const account = await findUserBy('token', token);
-  if (account) await setToken(account.id, null);
+  await db('DELETE', '/sessions?token=eq.' + encode(token));
 }
 
 export async function session(token) {
   if (!token) return null;
-  const account = await findUserBy('token', token);
-  if (!account || !account.token_at) return null;
-  if (Date.now() - Date.parse(account.token_at) > TOKEN_TTL) {
-    await setToken(account.id, null);
+  const row = await findSession(token);
+  if (!row) return null;
+  if (Date.now() - Date.parse(row.last_seen || row.created_at) > TOKEN_TTL) {
+    await db('DELETE', '/sessions?token=eq.' + encode(token));
     return null;
   }
-  const syncResult = await db(
-    'GET',
-    '/user_sync?select=*&id=eq.' + encode(account.id)
+  const user = await findUserById(row.user_id);
+  if (!user) {
+    await db('DELETE', '/sessions?token=eq.' + encode(token));
+    return null;
+  }
+  db('PATCH', '/sessions?token=eq.' + encode(token), {
+    last_seen: new Date().toISOString(),
+  }).catch(function () {});
+  const sync = await loadSync(user.id);
+  return Object.assign({}, userPublic(user), { sync });
+}
+
+export async function changePassword(token, current, next) {
+  const row = await findSession(token);
+  if (!row) return;
+  const account = await findUserById(row.user_id);
+  if (!account) return;
+  if (!verifyPassword(String(current || ''), account)) {
+    throw new Error('Current password is not correct.');
+  }
+  const salt = randomBytes(16).toString('hex');
+  await db(
+    'PATCH',
+    '/users?id=eq.' + encode(account.id),
+    { salt, hash: hashPassword(String(next), salt) },
   );
-  const row =
-    syncResult.ok && Array.isArray(syncResult.data) && syncResult.data[0]
-      ? syncResult.data[0]
-      : null;
-  const sync = row
-    ? {
-        historySetting:
-          typeof row.history_setting === 'string'
-            ? row.history_setting
-            : '24h',
-        theme: typeof row.theme === 'string' ? row.theme : 'system',
-        suggestions:
-          typeof row.suggestions === 'string' ? row.suggestions : 'on',
-        language: typeof row.language === 'string' ? row.language : 'en',
-        history: Array.isArray(row.history) ? row.history : [],
-      }
-    : DEFAULT_SYNC;
-  return { username: account.username, sync };
+}
+
+export async function updateProfile(token, profile) {
+  const row = await findSession(token);
+  if (!row) return false;
+  const result = await db(
+    'PATCH',
+    '/users?id=eq.' + encode(row.user_id),
+    {
+      display_name: String(profile.displayName || '').slice(0, 40),
+      bio: String(profile.bio || '').slice(0, 300),
+    },
+  );
+  return result.ok;
+}
+
+export async function setAvatar(token, data) {
+  const row = await findSession(token);
+  if (!row) return false;
+  const result = await db(
+    'PATCH',
+    '/users?id=eq.' + encode(row.user_id),
+    { avatar: data },
+  );
+  return result.ok;
+}
+
+export async function clearAvatar(token) {
+  const row = await findSession(token);
+  if (!row) return false;
+  const result = await db(
+    'PATCH',
+    '/users?id=eq.' + encode(row.user_id),
+    { avatar: null },
+  );
+  return result.ok;
+}
+
+export async function deleteAccount(token) {
+  const row = await findSession(token);
+  if (!row) return;
+  await db('DELETE', '/users?id=eq.' + encode(row.user_id));
+}
+
+export async function listSessions(token) {
+  const row = await findSession(token);
+  if (!row) return [];
+  const result = await db(
+    'GET',
+    '/sessions?select=token,created_at,last_seen,label&user_id=eq.' +
+      encode(row.user_id) +
+      '&order=last_seen.desc'
+  );
+  if (!result.ok || !Array.isArray(result.data)) return [];
+  return result.data;
+}
+
+export async function revokeSession(token, sessionToken) {
+  if (!sessionToken) return;
+  const row = await findSession(token);
+  if (!row) return;
+  await db(
+    'DELETE',
+    '/sessions?token=eq.' +
+      encode(sessionToken) +
+      '&user_id=eq.' +
+      encode(row.user_id)
+  );
+}
+
+export async function revokeAllSessions(token) {
+  const row = await findSession(token);
+  if (!row) return;
+  await db('DELETE', '/sessions?user_id=eq.' + encode(row.user_id));
 }
 
 export async function setSync(token, sync) {
-  const account = await findUserBy('token', token);
-  if (!account) return false;
+  const row = await findSession(token);
+  if (!row) return false;
   const result = await db(
     'POST',
     '/user_sync?on_conflict=id',
     {
-      id: account.id,
+      id: row.user_id,
       history_setting: sync.historySetting || '24h',
       theme: sync.theme || 'system',
       suggestions: sync.suggestions || 'on',
       language: sync.language || 'en',
       history: Array.isArray(sync.history) ? sync.history : [],
+      bookmarks: Array.isArray(sync.bookmarks) ? sync.bookmarks : [],
       updated_at: new Date().toISOString(),
     },
   );

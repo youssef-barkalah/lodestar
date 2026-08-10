@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { config } from './lib/config.js';
 import { searchSearXNG, UpstreamError } from './lib/searxng.js';
 import { buildFallbackPayload } from './lib/fallback.js';
+import { searchVertical, VERTICALS } from './lib/providers/index.js';
 import { normalizeResults } from './lib/normalize.js';
 import { rankResults } from './lib/rank.js';
 import { findOfficialSite, toApiSite } from './lib/websites.js';
@@ -34,7 +35,7 @@ function sendJson(res, status, body) {
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', config.corsOrigin);
   res.setHeader('Vary', 'Origin');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Accept, Content-Type, Authorization');
 }
 
@@ -173,6 +174,28 @@ async function handleSearch(req, res) {
   const options = { time, safeSearch };
   if (type === 'maps') {
     payload = await searchMaps(query, language);
+  } else if (VERTICALS[type]) {
+    payload = await searchVertical(type, query, {
+      page,
+      language,
+      time,
+      safeSearch,
+    });
+    if (payload.results.length === 0) {
+      try {
+        payload = await searchSearXNG(query, type, page, language, options);
+      } catch (err) {
+        if (err instanceof UpstreamError) {
+          console.warn(
+            '[lodestar] Search provider unreachable, using alternate providers.'
+          );
+          payload = await buildFallbackPayload(query, type, page, language);
+          usingFallback = true;
+        } else {
+          throw err;
+        }
+      }
+    }
   } else {
     try {
       payload = await searchSearXNG(query, type, page, language, options);
@@ -259,7 +282,12 @@ async function handleRegister(req, res) {
     const username = String(body.username || '').trim();
     const password = String(body.password || '');
     const loggedIn = await auth.register(username, password);
-    sendJson(res, 200, { username: loggedIn.username, token: loggedIn.token });
+    sendJson(res, 200, {
+      username: loggedIn.username,
+      displayName: loggedIn.displayName,
+      avatar: loggedIn.avatar,
+      token: loggedIn.token,
+    });
   } catch (err) {
     sendJson(res, 400, {
       error: { code: 'register_failed', message: err.message },
@@ -275,7 +303,12 @@ async function handleLogin(req, res) {
     const username = String(body.username || '').trim();
     const password = String(body.password || '');
     const loggedIn = await auth.login(username, password);
-    sendJson(res, 200, { username: loggedIn.username, token: loggedIn.token });
+    sendJson(res, 200, {
+      username: loggedIn.username,
+      displayName: loggedIn.displayName,
+      avatar: loggedIn.avatar,
+      token: loggedIn.token,
+    });
   } catch (err) {
     authError(res, err.message);
   }
@@ -323,6 +356,150 @@ async function handleSyncPost(req, res) {
 
 function handleCacheClear(req, res) {
   clearIconCache();
+  sendJson(res, 200, { ok: true });
+}
+
+function accountPayload(session) {
+  return {
+    username: session.username,
+    displayName: session.displayName,
+    bio: session.bio,
+    avatar: session.avatar,
+    created: session.created,
+  };
+}
+
+async function handleAccountGet(req, res) {
+  const session = await auth.session(bearerToken(req));
+  if (!session) return authError(res, 'Not signed in.');
+  sendJson(res, 200, accountPayload(session));
+}
+
+async function handleAccountPatch(req, res) {
+  const session = await auth.session(bearerToken(req));
+  if (!session) return authError(res, 'Not signed in.');
+  const body = await readBody(req).catch(function () {
+    return {};
+  });
+  const displayName = String(body.displayName || '').trim().slice(0, 40);
+  const bio = String(body.bio || '').trim().slice(0, 300);
+  const saved = await auth.updateProfile(bearerToken(req), {
+    displayName,
+    bio,
+  });
+  if (!saved) {
+    sendJson(res, 500, {
+      error: {
+        code: 'internal_error',
+        message: 'Could not update your profile. Please try again.',
+      },
+    });
+    return;
+  }
+  sendJson(res, 200, { ok: true, displayName, bio });
+}
+
+function isValidAvatar(value) {
+  if (typeof value !== 'string') return false;
+  const match = value.match(
+    /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=\s]+)$/
+  );
+  if (!match) return false;
+  return match[2].replace(/\s+/g, '').length <= 220 * 1024;
+}
+
+async function handleAvatarPut(req, res) {
+  const session = await auth.session(bearerToken(req));
+  if (!session) return authError(res, 'Not signed in.');
+  const body = await readBody(req).catch(function () {
+    return {};
+  });
+  const data = typeof body.data === 'string' ? body.data.trim() : '';
+  if (!isValidAvatar(data)) {
+    sendJson(res, 400, {
+      error: {
+        code: 'invalid_avatar',
+        message: 'Choose a PNG or JPEG photo under 200 KB.',
+      },
+    });
+    return;
+  }
+  const saved = await auth.setAvatar(bearerToken(req), data);
+  if (!saved) {
+    sendJson(res, 500, {
+      error: {
+        code: 'internal_error',
+        message: 'Could not save your photo. Please try again.',
+      },
+    });
+    return;
+  }
+  sendJson(res, 200, { ok: true });
+}
+
+async function handleAvatarDelete(req, res) {
+  const session = await auth.session(bearerToken(req));
+  if (!session) return authError(res, 'Not signed in.');
+  await auth.clearAvatar(bearerToken(req));
+  sendJson(res, 200, { ok: true });
+}
+
+async function handlePassword(req, res) {
+  const rate = rateLimit.limit(req);
+  if (!rate.allowed) return sendRateLimited(res, rate);
+  const session = await auth.session(bearerToken(req));
+  if (!session) return authError(res, 'Not signed in.');
+  const body = await readBody(req).catch(function () {
+    return {};
+  });
+  const current = String(body.current || '');
+  const next = String(body.next || '');
+  if (next.length < 6) {
+    sendJson(res, 400, {
+      error: {
+        code: 'weak_password',
+        message: 'New password must be at least 6 characters.',
+      },
+    });
+    return;
+  }
+  try {
+    await auth.changePassword(bearerToken(req), current, next);
+    sendJson(res, 200, { ok: true });
+  } catch (err) {
+    sendJson(res, 400, {
+      error: { code: 'wrong_password', message: err.message },
+    });
+  }
+}
+
+async function handleDeleteAccount(req, res) {
+  const rate = rateLimit.limit(req);
+  if (!rate.allowed) return sendRateLimited(res, rate);
+  const session = await auth.session(bearerToken(req));
+  if (!session) return authError(res, 'Not signed in.');
+  await auth.deleteAccount(bearerToken(req));
+  sendJson(res, 200, { ok: true });
+}
+
+async function handleSessionsGet(req, res) {
+  const session = await auth.session(bearerToken(req));
+  if (!session) return authError(res, 'Not signed in.');
+  const sessions = await auth.listSessions(bearerToken(req));
+  sendJson(res, 200, { sessions });
+}
+
+async function handleSessionsDeleteAll(req, res) {
+  const session = await auth.session(bearerToken(req));
+  if (!session) return authError(res, 'Not signed in.');
+  await auth.revokeAllSessions(bearerToken(req));
+  sendJson(res, 200, { ok: true });
+}
+
+async function handleSessionRevoke(req, res, sessionToken) {
+  const session = await auth.session(bearerToken(req));
+  if (!session) return authError(res, 'Not signed in.');
+  await auth.revokeSession(bearerToken(req), sessionToken);
   sendJson(res, 200, { ok: true });
 }
 
@@ -410,6 +587,118 @@ const server = createServer((req, res) => {
   }
   if (req.method === 'POST' && pathname === '/api/cache/clear') {
     handleCacheClear(req, res);
+    return;
+  }
+  if (req.method === 'GET' && pathname === '/api/account') {
+    handleAccountGet(req, res).catch(function (err) {
+      console.error(err);
+      sendJson(res, 500, {
+        error: {
+          code: 'internal_error',
+          message: 'Something went wrong. Please try again.',
+        },
+      });
+    });
+    return;
+  }
+  if (req.method === 'PATCH' && pathname === '/api/account') {
+    handleAccountPatch(req, res).catch(function (err) {
+      console.error(err);
+      sendJson(res, 500, {
+        error: {
+          code: 'internal_error',
+          message: 'Something went wrong. Please try again.',
+        },
+      });
+    });
+    return;
+  }
+  if (req.method === 'PUT' && pathname === '/api/account/avatar') {
+    handleAvatarPut(req, res).catch(function (err) {
+      console.error(err);
+      sendJson(res, 500, {
+        error: {
+          code: 'internal_error',
+          message: 'Something went wrong. Please try again.',
+        },
+      });
+    });
+    return;
+  }
+  if (req.method === 'DELETE' && pathname === '/api/account/avatar') {
+    handleAvatarDelete(req, res).catch(function (err) {
+      console.error(err);
+      sendJson(res, 500, {
+        error: {
+          code: 'internal_error',
+          message: 'Something went wrong. Please try again.',
+        },
+      });
+    });
+    return;
+  }
+  if (req.method === 'POST' && pathname === '/api/auth/password') {
+    handlePassword(req, res).catch(function (err) {
+      console.error(err);
+      sendJson(res, 500, {
+        error: {
+          code: 'internal_error',
+          message: 'Something went wrong. Please try again.',
+        },
+      });
+    });
+    return;
+  }
+  if (req.method === 'DELETE' && pathname === '/api/auth/account') {
+    handleDeleteAccount(req, res).catch(function (err) {
+      console.error(err);
+      sendJson(res, 500, {
+        error: {
+          code: 'internal_error',
+          message: 'Something went wrong. Please try again.',
+        },
+      });
+    });
+    return;
+  }
+  if (req.method === 'GET' && pathname === '/api/sessions') {
+    handleSessionsGet(req, res).catch(function (err) {
+      console.error(err);
+      sendJson(res, 500, {
+        error: {
+          code: 'internal_error',
+          message: 'Something went wrong. Please try again.',
+        },
+      });
+    });
+    return;
+  }
+  if (req.method === 'DELETE' && pathname === '/api/sessions') {
+    handleSessionsDeleteAll(req, res).catch(function (err) {
+      console.error(err);
+      sendJson(res, 500, {
+        error: {
+          code: 'internal_error',
+          message: 'Something went wrong. Please try again.',
+        },
+      });
+    });
+    return;
+  }
+  if (
+    req.method === 'DELETE' &&
+    pathname.indexOf('/api/sessions/') === 0
+  ) {
+    const sessionToken = decodeURIComponent(pathname.slice('/api/sessions/'.length));
+    handleSessionRevoke(req, res, sessionToken).catch(function (err) {
+      console.error(err);
+      sendJson(res, 500, {
+        error: {
+          code: 'internal_error',
+          message: 'Something went wrong. Please try again.',
+        },
+      });
+    });
     return;
   }
 

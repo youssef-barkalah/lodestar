@@ -35,6 +35,7 @@
           <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"></path>
         </svg>
       </a>
+      <div id="account-chip"></div>
       <button class="settings-icon" type="button" id="clear-cache" aria-label="Clear image cache" title="Clear image cache">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
@@ -82,5 +83,10 @@
 
   <script type="module" src="js/theme.js"></script>
   <script type="module" src="js/home.js"></script>
+  <script type="module" src="js/account-ui.js"></script>
+  <script type="module">
+    import { startAutoSync } from './js/sync.js';
+    startAutoSync();
+  </script>
 </body>
 </html>

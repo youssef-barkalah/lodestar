@@ -1,5 +1,6 @@
 import { all, clear, setting } from './history.js';
 import { directionOf } from './direction.js';
+import { syncDown } from './sync.js';
 
 const TYPE_LABELS = {
   web: 'Web',
@@ -107,7 +108,12 @@ function render() {
 if (clearButton) {
   clearButton.addEventListener('click', function () {
     clear();
-    render();
+render();
+
+syncDown().then(render);
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) syncDown().then(render);
+});
   });
 }
 
