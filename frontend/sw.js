@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'lodestar-v2';
+﻿const CACHE_NAME = 'lodestar-v3';
 const PRECACHE = [
   './',
   'index.html',
@@ -37,7 +37,6 @@ const PRECACHE = [
   '../assets/purple-logo.svg',
   '../assets/white-logo.svg',
   '../assets/logo-arabic.svg',
-  '../assets/logo-hebrew.svg',
   '../assets/icon-192.png',
   '../assets/icon-512.png',
 ];

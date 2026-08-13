@@ -94,8 +94,8 @@ deploy automatically.
 ## Localized logos
 
 The wordmark is swapped by language: Arabic uses `assets/logo-arabic.svg`,
-Hebrew uses `assets/logo-hebrew.svg`, every other language uses the regular
-purple/white logos. Replace those two files to change the look.
+every other language uses the regular purple/white logos. Replace that file
+to change the look.
 
 ## License
 

@@ -3,10 +3,9 @@ const DEFAULT = 'en';
 
 export const LANGUAGES = [
   { code: 'en', name: 'English' },
-  { code: 'ar', name: 'العربية' },
-  { code: 'es', name: 'Español' },
   { code: 'ga', name: 'Gaeilge' },
-  { code: 'he', name: 'עברית' },
+  { code: 'tr', name: 'Türkçe' },
+  { code: 'ar', name: 'العربية' },
 ];
 
 export function getLanguage() {
@@ -29,5 +28,5 @@ export function setLanguage(code) {
 }
 
 export function isRtl(code) {
-  return code === 'ar' || code === 'he';
+  return code === 'ar';
 }
