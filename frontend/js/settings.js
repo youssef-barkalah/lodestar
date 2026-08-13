@@ -77,11 +77,6 @@ function initRadioGroup(name, current) {
   return radios;
 }
 
-function pushSetting(payload) {
-  if (!isLoggedIn()) return;
-  pushSync(payload).catch(function () {});
-}
-
 let pendingSettings = null;
 
 function queueSetting(payload) {
@@ -204,7 +199,7 @@ function initLanguage() {
   select.addEventListener('change', function () {
     setLanguage(select.value);
     applyLanguage();
-    pushSetting({ language: select.value });
+    queueSetting({ language: select.value });
     renderAccount();
   });
 }
