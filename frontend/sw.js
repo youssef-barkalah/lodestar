@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'lodestar-v3';
+﻿const CACHE_NAME = 'lodestar-v4';
 const PRECACHE = [
   './',
   'index.html',
@@ -106,6 +106,24 @@ function navigateWithNetworkFirst(request) {
     });
 }
 
+function assetWithNetworkFirst(request) {
+  return fetch(request)
+    .then(function (response) {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(function (cache) {
+          cache.put(request, copy);
+        });
+      }
+      return response;
+    })
+    .catch(function () {
+      return caches.match(request).then(function (hit) {
+        return hit || Response.error();
+      });
+    });
+}
+
 self.addEventListener('fetch', function (event) {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || !inScope(url)) return;
@@ -113,6 +131,11 @@ self.addEventListener('fetch', function (event) {
 
   if (event.request.mode === 'navigate') {
     event.respondWith(navigateWithNetworkFirst(event.request));
+    return;
+  }
+
+  if (/\.(js|css)(\?.*)?$/.test(url.pathname)) {
+    event.respondWith(assetWithNetworkFirst(event.request));
     return;
   }
 
